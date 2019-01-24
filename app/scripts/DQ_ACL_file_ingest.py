@@ -149,7 +149,7 @@ def main():
                         rds_insert(RDS_TABLE, file_csv)
                         logger.info("File %s added to RDS", file_csv)
                     else:
-                        logger.debug("Skipping %s", file_csv)
+                        logger.info("Skipping %s", file_csv)
                         continue
 
                     file_csv_staging = os.path.join(STAGING_DIR, file_csv)

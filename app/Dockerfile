@@ -31,7 +31,6 @@ RUN groupadd -r runner && \
     chown -R runner:runner /home/runner/.ssh
 
 # Install script dependencies
-RUN apt-get install git wget
 RUN apt-get update -y && apt-get upgrade -y
 RUN pip install --no-cache-dir -r /tmp/ADT/scripts/packages.txt
 
