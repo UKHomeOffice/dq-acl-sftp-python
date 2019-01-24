@@ -11,10 +11,16 @@ set -e
 
 # Used by ftp_server function
 echo "********************************************"
-echo "Setup ftp-server container variables:"
+echo "Setup ftp-server variables:"
 echo "********************************************"
-echo "Enter mountpoint location (full file path) and press [ENTER]: "
-read mountpoint
+echo "Enter FTP hostaddress location (full file path) and press [ENTER]: "
+read hostaddress
+echo "********************************************"
+echo "Enter FTP username and press [ENTER]: "
+read username
+echo "********************************************"
+echo "Enter FTP password and press [ENTER]: "
+read password
 
 # Used by postgresql function
 echo "********************************************"
@@ -44,22 +50,6 @@ read awssecret
 echo "********************************************"
 randompass=$(openssl rand -hex 24)
 echo "Random password generated: $randompass"
-
-# Build FTP container
-
-function ftp_server {
-  run=$(docker run --rm \
-        --name ftp-server \
-        -e FTP_USER_NAME='test' \
-        -e FTP_USER_PASS=$randompass \
-        -e FTP_USER_HOME=/home/test \
-        -v $mountpoint:/home/test/test \
-        -d -p 2121:21 \
-        -p 30000-30009:30000-30009 \
-        stilliard/pure-ftpd
-        )
-        echo "Created container with SHA: $run"
-}
 
 # Build ClamAV container
 
@@ -122,10 +112,10 @@ function python {
   run=$(docker build -t python/acl --rm ../. && \
         docker run \
         --name acl \
-        -e ACL_SERVER='ftp-server' \
-        -e ACL_USERNAME='test' \
-        -e ACL_PASSWORD=$randompass \
-        -e ACL_LANDING_DIR='test' \
+        -e ACL_SERVER=$hostaddress \
+        -e ACL_USERNAME=$username \
+        -e ACL_PASSWORD=$password \
+        -e ACL_LANDING_DIR='3_Days' \
         -e S3_BUCKET_NAME=$bucketname \
         -e S3_KEY_PREFIX=$keyprefix \
         -e S3_ACCESS_KEY_ID=$awskeyid \
@@ -138,33 +128,16 @@ function python {
         -e ACL_RDS_PASSWORD=$randompass \
         -e ACL_RDS_TABLE=$postgrestable \
         --link clamav-api:clamav-api \
-        --link ftp-server:ftp-server \
         --link postgresql:postgresql \
         -d python/acl
        )
        echo "Created container with SHA: $run"
 }
 
-function create_ok_file {
-  DATE=`date +%Y%m%d`
-  run=$(echo "Test;data;in;file." > $mountpoint/HOMEOFFICEROLL3_$DATE.csv && sleep 5) # wait for Python container start PM2 and process file
-  echo "Created OK test file: HOMEOFFICEROLL3_$DATE.csv"
-}
-
-function create_virus_file {
-  DATE=`date +%Y%m%d`
-  run=$(cat ./eicar.com > $mountpoint/HOMEOFFICEROLL3_$DATE.csv)
-  echo "Created FAIL test file: HOMEOFFICEROLL3_$DATE.csv"
-}
-
 function main {
   echo "********************************************"
   echo "Building postgressql"
   postgresql
-  echo "Done."
-  echo "********************************************"
-  echo "Building FTP-server"
-  ftp_server
   echo "Done."
   echo "********************************************"
   echo "Building clamav"
@@ -182,18 +155,6 @@ function main {
   echo "Building python"
   python
   echo "Done."
-  echo "********************************************"
-  echo "Generating test files."
-  echo "Creating OK test file and wait 5 seconds so that Python container can process it. Waiting..."
-  create_ok_file
-  echo "Done."
-  echo "********************************************"
-  echo "Creating Virus test file. Waiting..."
-  create_virus_file
-  echo "Done."
-  echo "********************************************"
-  echo "Check S3 and verify test files are there also check clamav logs to see the virus being blocked"
-  echo "********************************************"
 }
 
 main
