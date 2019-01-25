@@ -1,9 +1,9 @@
 #!/usr/bin/python
 """
-# SFTP ACL Script
+# FTP ACL Script
 # Version 2
 
-# Move files from SFTP to local drive
+# Copy files from FTP to local drive
 # Scan them using ClamAV
 # Upload to S3
 # Remove from local drive

@@ -2,14 +2,14 @@
 
 # This script does the following:
 # - downloads and runs 3 (three) Docker containers all from public repositories
-# - builds a new container from the local repository
+# - builds 2 (two) new containers from the local repository
 # - requests running user to supply values used as variables
 
 set -e
 
 # Set variables
 
-# Used by ftp_server function
+# Used to connect to FTP server
 echo "********************************************"
 echo "Setup ftp-server variables:"
 echo "********************************************"
@@ -110,7 +110,7 @@ function postgresql_sidekick {
 
 function python {
   run=$(docker build -t python/acl --rm ../. && \
-        docker run \
+        docker run --rm \
         --name acl \
         -e ACL_SERVER=$hostaddress \
         -e ACL_USERNAME=$username \
