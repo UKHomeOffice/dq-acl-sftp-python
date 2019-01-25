@@ -1,0 +1,6 @@
+boto3
+ftputil
+requests
+schedule
+psycopg2
+psycopg2-binary
