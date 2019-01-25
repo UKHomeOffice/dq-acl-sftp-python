@@ -13,3 +13,105 @@ pipeline:
       - ${DRONE_BUILD_NUMBER}
     when:
       event: push
+
+  deploy_to_dev:
+    image: quay.io/ukhomeofficedigital/kd
+    environment:
+      - KUBE_NAMESPACE=dq-apps-notprod
+      - INSECURE_SKIP_TLS_VERIFY=true
+      - ACL_PVC_SIZE=1Gi
+      - ACL_CPU_REQUEST=1
+      - ACL_CPU_LIMIT=1.5
+      - ACL_RAM_REQUEST=1Gi
+      - ACL_RAM_LIMIT=1.5Gi
+      - CLAMAV_CPU_REQUEST=1
+      - CLAMAV_CPU_LIMIT=1.5
+      - CLAMAV_RAM_REQUEST=1Gi
+      - CLAMAV_RAM_LIMIT=1.5Gi
+    commands:
+      - export KUBE_TOKEN=$$NOTPROD_KUBE_TOKEN
+      - export KUBE_SERVER=$$NOTPROD_KUBE_SERVER
+      - export ACL_SERVER=$$NOTPROD_ACL_SERVER
+      - export ACL_USERNAME=$$NOTPROD_ACL_USERNAME
+      - export ACL_PASSWORD=$$NOTPROD_ACL_PASSWORD
+      - export ACL_LANDING_DIR=$$NOTPROD_ACL_LANDING_DIR
+      - export S3_BUCKET_NAME=$$NOTPROD_S3_BUCKET_NAME
+      - export S3_KEY_PREFIX=$$NOTPROD_S3_KEY_PREFIX
+      - export S3_ACCESS_KEY_ID=$$NOTPROD_S3_ACCESS_KEY_ID
+      - export S3_SECRET_ACCESS_KEY=$$NOTPROD_S3_SECRET_ACCESS_KEY
+      - export ACL_RDS_HOST=$$NOTPROD_ACL_RDS_HOST
+      - export ACL_RDS_DATABASE=$$NOTPROD_ACL_RDS_DATABASE
+      - export ACL_RDS_USERNAME=$$NOTPROD_ACL_RDS_USERNAME
+      - export ACL_RDS_PASSWORD=$$NOTPROD_ACL_RDS_PASSWORD
+      - export ACL_RDS_TABLE=$$NOTPROD_ACL_RDS_TABLE
+      - kd -f kube/pvc.yml -f kube/secret.yml -f kube/deployment.yml
+    secrets:
+      - NOTPROD_KUBE_TOKEN
+      - NOTPROD_KUBE_SERVER
+      - NOTPROD_ACL_SERVER
+      - NOTPROD_ACL_USERNAME
+      - NOTPROD_ACL_PASSWORD
+      - NOTPROD_ACL_LANDING_DIR
+      - NOTPROD_S3_BUCKET_NAME
+      - NOTPROD_S3_KEY_PREFIX
+      - NOTPROD_S3_ACCESS_KEY_ID
+      - NOTPROD_S3_SECRET_ACCESS_KEY
+      - NOTPROD_ACL_RDS_HOST
+      - NOTPROD_ACL_RDS_DATABASE
+      - NOTPROD_ACL_RDS_USERNAME
+      - NOTPROD_ACL_RDS_PASSWORD
+      - NOTPROD_ACL_RDS_TABLE
+    when:
+      event: push
+
+  deploy_to_production:
+    image: quay.io/ukhomeofficedigital/kd
+    environment:
+      - KUBE_NAMESPACE=dq-apps
+      - INSECURE_SKIP_TLS_VERIFY=true
+      - ACL_PVC_SIZE=5Gi
+      - ACL_CPU_REQUEST=2
+      - ACL_CPU_LIMIT=2.5
+      - ACL_RAM_REQUEST=3Gi
+      - ACL_RAM_LIMIT=4Gi
+      - CLAMAV_CPU_REQUEST=2
+      - CLAMAV_CPU_LIMIT=2.5
+      - CLAMAV_RAM_REQUEST=3Gi
+      - CLAMAV_RAM_LIMIT=4Gi
+    commands:
+      - export KUBE_TOKEN=$$PROD_KUBE_TOKEN
+      - export KUBE_SERVER=$$PROD_KUBE_SERVER
+      - export ACL_SERVER=$$PROD_ACL_SERVER
+      - export ACL_USERNAME=$$PROD_ACL_USERNAME
+      - export ACL_PASSWORD=$$PROD_ACL_PASSWORD
+      - export ACL_LANDING_DIR=$$PROD_ACL_LANDING_DIR
+      - export S3_BUCKET_NAME=$$PROD_S3_BUCKET_NAME
+      - export S3_KEY_PREFIX=$$PROD_S3_KEY_PREFIX
+      - export S3_ACCESS_KEY_ID=$$PROD_S3_ACCESS_KEY_ID
+      - export S3_SECRET_ACCESS_KEY=$$PROD_S3_SECRET_ACCESS_KEY
+      - export ACL_RDS_HOST=$$PROD_ACL_RDS_HOST
+      - export ACL_RDS_DATABASE=$$PROD_ACL_RDS_DATABASE
+      - export ACL_RDS_USERNAME=$$PROD_ACL_RDS_USERNAME
+      - export ACL_RDS_PASSWORD=$$PROD_ACL_RDS_PASSWORD
+      - export ACL_RDS_TABLE=$$PROD_ACL_RDS_TABLE
+      - kd -f kube/pvc.yml -f kube/secret.yml -f kube/deployment.yml
+    secrets:
+      - PROD_KUBE_TOKEN
+      - PROD_KUBE_SERVER
+      - PROD_ACL_SERVER
+      - PROD_ACL_USERNAME
+      - PROD_ACL_PASSWORD
+      - PROD_ACL_LANDING_DIR
+      - PROD_S3_BUCKET_NAME
+      - PROD_S3_KEY_PREFIX
+      - PROD_S3_ACCESS_KEY_ID
+      - PROD_S3_SECRET_ACCESS_KEY
+      - PROD_ACL_RDS_HOST
+      - PROD_ACL_RDS_DATABASE
+      - PROD_ACL_RDS_USERNAME
+      - PROD_ACL_RDS_PASSWORD
+      - PROD_ACL_RDS_TABLE
+    when:
+      environment: production
+      branch: master
+      event: deployment

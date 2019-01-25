@@ -49,7 +49,7 @@ def run_virus_scan(filename):
     Send a file to scanner API
     """
     logger = logging.getLogger()
-    logger.debug("Virus Scanning %s folder", filename)
+    logger.info("Virus Scanning %s folder", filename)
     # do quarantine move using via the virus scanner
     file_list = os.listdir(filename)
     for scan_file in file_list:
@@ -149,7 +149,7 @@ def main():
                         rds_insert(RDS_TABLE, file_csv)
                         logger.info("File %s added to RDS", file_csv)
                     else:
-                        logger.info("Skipping %s", file_csv)
+                        logger.debug("Skipping %s", file_csv)
                         continue
 
                     file_csv_staging = os.path.join(STAGING_DIR, file_csv)
@@ -163,7 +163,7 @@ def main():
                     if download:
                         logger.info("Downloading %s to %s", file_csv, file_csv_staging)
                         ftp_host.download(file_csv, file_csv_staging) # remote, local (staging)
-                        logger.debug("Downloaded %s to %s", file_csv, file_csv_staging)
+                        logger.info("Downloaded %s", file_csv)
                     else:
                         logger.error("Could not download %s from FTP", file_csv)
                         continue
