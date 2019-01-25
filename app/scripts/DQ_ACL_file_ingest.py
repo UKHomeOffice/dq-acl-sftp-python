@@ -49,7 +49,7 @@ def run_virus_scan(filename):
     Send a file to scanner API
     """
     logger = logging.getLogger()
-    logger.info("Virus Scanning %s", filename)
+    logger.info("Virus Scanning %s folder", filename)
     # do quarantine move using via the virus scanner
     file_list = os.listdir(filename)
     for scan_file in file_list:
