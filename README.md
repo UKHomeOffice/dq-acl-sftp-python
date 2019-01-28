@@ -98,6 +98,7 @@ The script will require the following variables passed in at runtime.
 | awssecret | abcdb1234 | True | AWS Secret access key |
 
 - Components:
+  - FTP container
   - ClamAV container
   - ClamAV REST API container
   - PostgreSQL container
