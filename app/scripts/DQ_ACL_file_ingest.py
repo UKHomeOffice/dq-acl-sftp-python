@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 """
 # FTP ACL Script
 # Version 2
@@ -26,6 +26,7 @@ FTP_LANDING_DIR      = os.environ['ACL_LANDING_DIR']
 DOWNLOAD_DIR         = '/ADT/data/acl'
 STAGING_DIR          = '/ADT/stage/acl'
 QUARANTINE_DIR       = '/ADT/quarantine/acl'
+SCRIPT_DIR           = '/ADT/scripts'
 BUCKET_NAME          = os.environ['S3_BUCKET_NAME']
 BUCKET_KEY_PREFIX    = os.environ['S3_KEY_PREFIX']
 S3_ACCESS_KEY_ID     = os.environ['S3_ACCESS_KEY_ID']
@@ -57,13 +58,13 @@ def run_virus_scan(filename):
         with open(processing, 'rb') as scan:
             response = requests.post('http://' + BASE_URL + ':' + BASE_PORT + '/scan', files={'file': scan}, data={'name': scan_file})
             if not 'Everything ok : true' in response.text:
-                logger.error('File %s is dangerous, preventing upload', scan_file)
+                logger.error('Virus scan FAIL: %s is dangerous!', scan_file)
                 file_quarantine = os.path.join(QUARANTINE_DIR, scan_file)
                 logger.info('Move %s from staging to quarantine %s', processing, file_quarantine)
                 os.rename(processing, file_quarantine)
                 return False
             else:
-                logger.info('Virus scan OK')
+                logger.info('Virus scan OK: %s', scan_file)
     return True
 
 def rds_insert(table, filename):
@@ -117,7 +118,7 @@ def main():
     logger = logging.getLogger()
     logger.info("Starting")
 
-    os.chdir('/ADT/scripts')
+    os.chdir(SCRIPT_DIR)
     if not os.path.exists(DOWNLOAD_DIR):
         os.makedirs(DOWNLOAD_DIR)
     if not os.path.exists(STAGING_DIR):
