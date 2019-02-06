@@ -67,9 +67,9 @@ def run_virus_scan(filename):
             response = requests.post('http://' + BASE_URL + ':' + BASE_PORT + '/scan',
                                      files={'file': scan}, data={'name': scan_file})
             if not 'Everything ok : true' in response.text:
-                logger.error('Virus scan FAIL: %s is dangerous!', scan_file)
+                logger.warning('Virus scan FAIL: %s is dangerous!', scan_file)
                 file_quarantine = os.path.join(QUARANTINE_DIR, scan_file)
-                logger.info('Move %s from staging to quarantine %s', processing, file_quarantine)
+                logger.warning('Move %s from staging to quarantine %s', processing, file_quarantine)
                 os.rename(processing, file_quarantine)
                 return False
             else:
@@ -191,7 +191,7 @@ def main():
                 else:
                     logger.error("Could not run virus scan on %s", obj)
                     break
-        logger.info("Downloaded %s files", downloadcount)
+            logger.info("Downloaded %s files", downloadcount)
 
 # Move files to S3
         processed_acl_file_list = [filename for filename in os.listdir(DOWNLOAD_DIR)]
@@ -213,10 +213,10 @@ def main():
                     logger.info("Copying %s to S3", filename)
                     s3_conn.upload_file(full_filepath, BUCKET_NAME,
                                         BUCKET_KEY_PREFIX + "/" + filename)
+                    uploadcount += 1
                 else:
                     logger.error("Failed to upload %s, exiting...", filename)
                     break
-            uploadcount += 1
             logger.info("Uploaded %s files to %s", uploadcount, BUCKET_NAME)
 # Moving files to Secondary S3 bucket
         for filename in processed_acl_file_list:
@@ -231,10 +231,10 @@ def main():
                     secondary_s3_conn.upload_file(secondary_full_filepath,
                                                   SECONDARY_S3_BUCKET_NAME,
                                                   secondary_bucket_key_prefix + "/" + filename)
+                    secondary_uploadcount += 1
                 except Exception:
                     logger.exception("Failed to upload %s, exiting...", filename)
                     break
-        secondary_uploadcount += 1
         logger.info("Uploaded %s files to %s", secondary_uploadcount, SECONDARY_S3_BUCKET_NAME)
 # Cleaning up
     for filename in processed_acl_file_list:
