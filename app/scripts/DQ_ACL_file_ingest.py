@@ -10,6 +10,7 @@
 """
 import re
 import os
+import sys
 import datetime
 import logging
 from logging.handlers import TimedRotatingFileHandler
@@ -28,7 +29,7 @@ DOWNLOAD_DIR                   = '/ADT/data/acl'
 STAGING_DIR                    = '/ADT/stage/acl'
 QUARANTINE_DIR                 = '/ADT/quarantine/acl'
 SCRIPT_DIR                     = '/ADT/scripts'
-LOG_FILE                       = '/ADT/log/ftp_acl.log'
+LOG_FILE                       = '/ADT/log/DQ_FTP_ACL.log'
 BUCKET_NAME                    = os.environ['S3_BUCKET_NAME']
 BUCKET_KEY_PREFIX              = os.environ['S3_KEY_PREFIX']
 S3_ACCESS_KEY_ID               = os.environ['S3_ACCESS_KEY_ID']
@@ -67,13 +68,13 @@ def run_virus_scan(filename):
             response = requests.post('http://' + BASE_URL + ':' + BASE_PORT + '/scan',
                                      files={'file': scan}, data={'name': scan_file})
             if not 'Everything ok : true' in response.text:
-                logger.warning('Virus scan FAIL: %s is dangerous!', scan_file)
+                logger.warning("Virus scan FAIL: %s is dangerous!", scan_file)
                 file_quarantine = os.path.join(QUARANTINE_DIR, scan_file)
-                logger.warning('Move %s from staging to quarantine %s', processing, file_quarantine)
+                logger.warning("Move %s from staging to quarantine %s", processing, file_quarantine)
                 os.rename(processing, file_quarantine)
                 return False
             else:
-                logger.info('Virus scan OK: %s', scan_file)
+                logger.info("Virus scan OK: %s", scan_file)
     return True
 
 def rds_insert(table, filename):
@@ -85,7 +86,8 @@ def rds_insert(table, filename):
         CUR.execute(sql.SQL("INSERT INTO {} values (%s)").format(sql.Identifier(table)), (filename,))
         CONN.commit()
     except Exception:
-        logger.exception('INSERT ERROR')
+        logger.exception("INSERT ERROR")
+        sys.exit(1)
 
 def rds_query(table, filename):
     """
@@ -96,7 +98,8 @@ def rds_query(table, filename):
         CUR.execute(sql.SQL("SELECT * FROM {} WHERE filename = (%s)").format(sql.Identifier(table)), (filename,))
         CONN.commit()
     except Exception:
-        logger.exception('QUERY ERROR')
+        logger.exception("QUERY ERROR")
+        sys.exit(1)
     if CUR.fetchone():
         return 1
     else:
@@ -119,6 +122,9 @@ def main():
     loghandler.suffix = "%Y-%m-%d"
     loghandler.setFormatter(form)
     logger.addHandler(loghandler)
+    consolehandler = logging.StreamHandler()
+    consolehandler.setFormatter(form)
+    logger.addHandler(consolehandler)
     logger.info("Starting")
 
     os.chdir(SCRIPT_DIR)
@@ -148,6 +154,7 @@ def main():
                         result = rds_query(RDS_TABLE, file_csv)
                     except Exception:
                         logger.exception("Error running SQL query")
+                        sys.exit(1)
                     if result == 0:
                         download = True
                         logger.info("File %s downloaded", file_csv)
@@ -175,6 +182,7 @@ def main():
 
         except Exception:
             logger.exception("Failure")
+            sys.exit(1)
 
 # Run virus scan
         if run_virus_scan(STAGING_DIR):
@@ -234,7 +242,7 @@ def main():
                     secondary_uploadcount += 1
                 except Exception:
                     logger.exception("Failed to upload %s, exiting...", filename)
-                    break
+                    sys.exit(1)
         logger.info("Uploaded %s files to %s", secondary_uploadcount, SECONDARY_S3_BUCKET_NAME)
 # Cleaning up
     for filename in processed_acl_file_list:
@@ -243,7 +251,8 @@ def main():
             os.remove(full_filepath)
             logger.info("Cleaning up local file %s", filename)
         except Exception:
-            logger. exception("Failed to delete file %s", filename)
+            logger.exception("Failed to delete file %s", filename)
+            sys.exit(1)
 # end def main
 
 if __name__ == '__main__':
