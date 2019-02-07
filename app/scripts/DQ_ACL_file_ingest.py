@@ -10,8 +10,10 @@
 """
 import re
 import os
-import argparse
+import sys
+import datetime
 import logging
+from logging.handlers import TimedRotatingFileHandler
 import ftputil
 import boto3
 import requests
@@ -19,30 +21,37 @@ import psycopg2
 from psycopg2 import sql
 
 
-FTP_SERVER           = os.environ['ACL_SERVER']
-FTP_USERNAME         = os.environ['ACL_USERNAME']
-FTP_PASSWORD         = os.environ['ACL_PASSWORD']
-FTP_LANDING_DIR      = os.environ['ACL_LANDING_DIR']
-DOWNLOAD_DIR         = '/ADT/data/acl'
-STAGING_DIR          = '/ADT/stage/acl'
-QUARANTINE_DIR       = '/ADT/quarantine/acl'
-SCRIPT_DIR           = '/ADT/scripts'
-BUCKET_NAME          = os.environ['S3_BUCKET_NAME']
-BUCKET_KEY_PREFIX    = os.environ['S3_KEY_PREFIX']
-S3_ACCESS_KEY_ID     = os.environ['S3_ACCESS_KEY_ID']
-S3_SECRET_ACCESS_KEY = os.environ['S3_SECRET_ACCESS_KEY']
-S3_REGION_NAME       = os.environ['S3_REGION_NAME']
-BASE_URL             = os.environ['CLAMAV_URL']
-BASE_PORT            = os.environ['CLAMAV_PORT']
-RDS_HOST             = os.environ['ACL_RDS_HOST']
-RDS_DATABASE         = os.environ['ACL_RDS_DATABASE']
-RDS_USERNAME         = os.environ['ACL_RDS_USERNAME']
-RDS_PASSWORD         = os.environ['ACL_RDS_PASSWORD']
-RDS_TABLE            = os.environ['ACL_RDS_TABLE']
+FTP_SERVER                    = os.environ['ACL_SERVER']
+FTP_USERNAME                   = os.environ['ACL_USERNAME']
+FTP_PASSWORD                   = os.environ['ACL_PASSWORD']
+FTP_LANDING_DIR                = os.environ['ACL_LANDING_DIR']
+DOWNLOAD_DIR                   = '/ADT/data/acl'
+STAGING_DIR                    = '/ADT/stage/acl'
+QUARANTINE_DIR                 = '/ADT/quarantine/acl'
+SCRIPT_DIR                     = '/ADT/scripts'
+LOG_FILE                       = '/ADT/log/DQ_FTP_ACL.log'
+BUCKET_NAME                    = os.environ['S3_BUCKET_NAME']
+BUCKET_KEY_PREFIX              = os.environ['S3_KEY_PREFIX']
+S3_ACCESS_KEY_ID               = os.environ['S3_ACCESS_KEY_ID']
+S3_SECRET_ACCESS_KEY           = os.environ['S3_SECRET_ACCESS_KEY']
+S3_REGION_NAME                 = os.environ['S3_REGION_NAME']
+SECONDARY_S3_BUCKET_NAME       = os.environ['SECONDARY_S3_BUCKET_NAME']
+SECONDARY_S3_ACCESS_KEY_ID     = os.environ['SECONDARY_S3_ACCESS_KEY_ID']
+SECONDARY_S3_SECRET_ACCESS_KEY = os.environ['SECONDARY_S3_SECRET_ACCESS_KEY']
+BASE_URL                       = os.environ['CLAMAV_URL']
+BASE_PORT                      = os.environ['CLAMAV_PORT']
+RDS_HOST                       = os.environ['ACL_RDS_HOST']
+RDS_DATABASE                   = os.environ['ACL_RDS_DATABASE']
+RDS_USERNAME                   = os.environ['ACL_RDS_USERNAME']
+RDS_PASSWORD                   = os.environ['ACL_RDS_PASSWORD']
+RDS_TABLE                      = os.environ['ACL_RDS_TABLE']
 
 # Setup RDS connection
 
-CONN = psycopg2.connect(host=RDS_HOST, dbname=RDS_DATABASE, user=RDS_USERNAME, password=RDS_PASSWORD)
+CONN = psycopg2.connect(host=RDS_HOST,
+                        dbname=RDS_DATABASE,
+                        user=RDS_USERNAME,
+                        password=RDS_PASSWORD)
 CUR = CONN.cursor()
 
 def run_virus_scan(filename):
@@ -56,15 +65,16 @@ def run_virus_scan(filename):
     for scan_file in file_list:
         processing = os.path.join(STAGING_DIR, scan_file)
         with open(processing, 'rb') as scan:
-            response = requests.post('http://' + BASE_URL + ':' + BASE_PORT + '/scan', files={'file': scan}, data={'name': scan_file})
+            response = requests.post('http://' + BASE_URL + ':' + BASE_PORT + '/scan',
+                                     files={'file': scan}, data={'name': scan_file})
             if not 'Everything ok : true' in response.text:
-                logger.error('Virus scan FAIL: %s is dangerous!', scan_file)
+                logger.warning("Virus scan FAIL: %s is dangerous!", scan_file)
                 file_quarantine = os.path.join(QUARANTINE_DIR, scan_file)
-                logger.info('Move %s from staging to quarantine %s', processing, file_quarantine)
+                logger.warning("Move %s from staging to quarantine %s", processing, file_quarantine)
                 os.rename(processing, file_quarantine)
                 return False
             else:
-                logger.info('Virus scan OK: %s', scan_file)
+                logger.info("Virus scan OK: %s", scan_file)
     return True
 
 def rds_insert(table, filename):
@@ -76,7 +86,8 @@ def rds_insert(table, filename):
         CUR.execute(sql.SQL("INSERT INTO {} values (%s)").format(sql.Identifier(table)), (filename,))
         CONN.commit()
     except Exception:
-        logger.exception('INSERT ERROR')
+        logger.exception("INSERT ERROR")
+        sys.exit(1)
 
 def rds_query(table, filename):
     """
@@ -87,7 +98,8 @@ def rds_query(table, filename):
         CUR.execute(sql.SQL("SELECT * FROM {} WHERE filename = (%s)").format(sql.Identifier(table)), (filename,))
         CONN.commit()
     except Exception:
-        logger.exception('QUERY ERROR')
+        logger.exception("QUERY ERROR")
+        sys.exit(1)
     if CUR.fetchone():
         return 1
     else:
@@ -97,25 +109,22 @@ def main():
     """
     Main function
     """
-    parser = argparse.ArgumentParser(description='ACL FTP Downloader')
-    parser.add_argument('-D', '--DEBUG', default=False, action='store_true', help='Debug mode logging')
-    args = parser.parse_args()
-    if args.DEBUG:
-        logging.basicConfig(
-            filename='/ADT/log/ftp_acl.log',
-            format="%(asctime)s\t%(name)s\t%(levelname)s\t%(message)s",
-            datefmt='%Y-%m-%d %H:%M:%S',
-            level=logging.DEBUG
-        )
-    else:
-        logging.basicConfig(
-            filename='/ADT/log/ftp_acl.log',
-            format="%(asctime)s\t%(name)s\t%(levelname)s\t%(message)s",
-            datefmt='%Y-%m-%d %H:%M:%S',
-            level=logging.INFO
-        )
-
+    logformat = '%(asctime)s\t%(name)s\t%(levelname)s\t%(message)s'
+    form = logging.Formatter(logformat)
+    logging.basicConfig(
+        format=logformat,
+        level=logging.INFO
+    )
     logger = logging.getLogger()
+    if logger.hasHandlers():
+        logger.handlers.clear()
+    loghandler = TimedRotatingFileHandler(LOG_FILE, when="midnight", interval=1, backupCount=7)
+    loghandler.suffix = "%Y-%m-%d"
+    loghandler.setFormatter(form)
+    logger.addHandler(loghandler)
+    consolehandler = logging.StreamHandler()
+    consolehandler.setFormatter(form)
+    logger.addHandler(consolehandler)
     logger.info("Starting")
 
     os.chdir(SCRIPT_DIR)
@@ -128,6 +137,7 @@ def main():
 
     downloadcount = 0
     uploadcount = 0
+    secondary_uploadcount = 0
 
 # Connect and GET files
     logger.info("Connecting via FTP")
@@ -137,13 +147,14 @@ def main():
             ftp_host.chdir(FTP_LANDING_DIR)
             files = ftp_host.listdir(ftp_host.curdir)
             for file_csv in files:
-                match = re.search('^(.*?)homeofficeroll(\d+)_(\d{4}\d{2}\d{2})\.csv$', file_csv, re.I)
+                match = re.search(r'^(.*?)homeofficeroll(\d+)_(\d{4}\d{2}\d{2})\.csv$', file_csv, re.IGNORECASE)
                 download = False
                 if match is not None:
                     try:
                         result = rds_query(RDS_TABLE, file_csv)
                     except Exception:
                         logger.exception("Error running SQL query")
+                        sys.exit(1)
                     if result == 0:
                         download = True
                         logger.info("File %s downloaded", file_csv)
@@ -171,6 +182,7 @@ def main():
 
         except Exception:
             logger.exception("Failure")
+            sys.exit(1)
 
 # Run virus scan
         if run_virus_scan(STAGING_DIR):
@@ -187,31 +199,60 @@ def main():
                 else:
                     logger.error("Could not run virus scan on %s", obj)
                     break
-        logger.info("Downloaded %s files", downloadcount)
+            logger.info("Downloaded %s files", downloadcount)
 
 # Move files to S3
-        logger.info("Starting to move files to S3")
         processed_acl_file_list = [filename for filename in os.listdir(DOWNLOAD_DIR)]
         boto_s3_session = boto3.Session(
             aws_access_key_id=S3_ACCESS_KEY_ID,
             aws_secret_access_key=S3_SECRET_ACCESS_KEY,
             region_name=S3_REGION_NAME
         )
+        boto_secondary_s3_session = boto3.Session(
+            aws_access_key_id=SECONDARY_S3_ACCESS_KEY_ID,
+            aws_secret_access_key=SECONDARY_S3_SECRET_ACCESS_KEY,
+            region_name=S3_REGION_NAME
+        )
         if processed_acl_file_list:
             for filename in processed_acl_file_list:
                 s3_conn = boto_s3_session.client("s3")
                 full_filepath = os.path.join(DOWNLOAD_DIR, filename)
-                logger.info("Copying %s to S3", filename)
                 if os.path.isfile(full_filepath):
-                    s3_conn.upload_file(full_filepath, BUCKET_NAME, BUCKET_KEY_PREFIX + "/" + filename)
-                    os.remove(full_filepath)
-                    logger.info("Deleting local file: %s", filename)
+                    logger.info("Copying %s to S3", filename)
+                    s3_conn.upload_file(full_filepath, BUCKET_NAME,
+                                        BUCKET_KEY_PREFIX + "/" + filename)
                     uploadcount += 1
                 else:
-                    logger.error("Failed to upload %s", filename)
-
-        logger.info("Uploaded %s files", uploadcount)
-
+                    logger.error("Failed to upload %s, exiting...", filename)
+                    break
+            logger.info("Uploaded %s files to %s", uploadcount, BUCKET_NAME)
+# Moving files to Secondary S3 bucket
+        for filename in processed_acl_file_list:
+            match = re.search(r'^(.*?)homeofficeroll(\d+)_(\d{4}\d{2}\d{2})\.csv$', filename, re.IGNORECASE)
+            if match is not None:
+                try:
+                    time = datetime.datetime.now()
+                    secondary_bucket_key_prefix = time.strftime("%Y-%m-%d/%H:%M:%S.%f")
+                    secondary_full_filepath = os.path.join(DOWNLOAD_DIR, filename)
+                    secondary_s3_conn = boto_secondary_s3_session.client("s3")
+                    logger.info("Copying %s to S3 %s bucket", filename, SECONDARY_S3_BUCKET_NAME)
+                    secondary_s3_conn.upload_file(secondary_full_filepath,
+                                                  SECONDARY_S3_BUCKET_NAME,
+                                                  secondary_bucket_key_prefix + "/" + filename)
+                    secondary_uploadcount += 1
+                except Exception:
+                    logger.exception("Failed to upload %s, exiting...", filename)
+                    sys.exit(1)
+        logger.info("Uploaded %s files to %s", secondary_uploadcount, SECONDARY_S3_BUCKET_NAME)
+# Cleaning up
+    for filename in processed_acl_file_list:
+        try:
+            full_filepath = os.path.join(DOWNLOAD_DIR, filename)
+            os.remove(full_filepath)
+            logger.info("Cleaning up local file %s", filename)
+        except Exception:
+            logger.exception("Failed to delete file %s", filename)
+            sys.exit(1)
 # end def main
 
 if __name__ == '__main__':
