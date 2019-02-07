@@ -72,6 +72,21 @@ spec:
               secretKeyRef:
                 name: dq-acl-data-ingest
                 key: S3_SECRET_ACCESS_KEY
+          - name: SECONDARY_S3_BUCKET_NAME
+            valueFrom:
+              secretKeyRef:
+                name: dq-acl-data-ingest
+                key: SECONDARY_S3_BUCKET_NAME
+          - name: SECONDARY_S3_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: dq-acl-data-ingest
+                key: SECONDARY_S3_ACCESS_KEY_ID
+          - name: SECONDARY_S3_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: dq-acl-data-ingest
+                key: SECONDARY_S3_SECRET_ACCESS_KEY
           - name: ACL_RDS_HOST
             valueFrom:
               secretKeyRef:
