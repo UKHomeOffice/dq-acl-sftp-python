@@ -29,7 +29,8 @@ module.exports = {
         ACL_RDS_DATABASE : process.argv[19],
         ACL_RDS_USERNAME : process.argv[20],
         ACL_RDS_PASSWORD : process.argv[21],
-        ACL_RDS_TABLE : process.argv[22]
+        ACL_RDS_TABLE : process.argv[22],
+        SLACK_WEBHOOK : process.argv[23]
       }
     }
   ]

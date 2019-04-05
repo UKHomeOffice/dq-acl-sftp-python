@@ -14,14 +14,16 @@ import sys
 import datetime
 import logging
 from logging.handlers import TimedRotatingFileHandler
-import ftputil
+import json
+import urllib.request
 import boto3
 import requests
 import psycopg2
 from psycopg2 import sql
+import ftputil
 
 
-FTP_SERVER                    = os.environ['ACL_SERVER']
+FTP_SERVER                     = os.environ['ACL_SERVER']
 FTP_USERNAME                   = os.environ['ACL_USERNAME']
 FTP_PASSWORD                   = os.environ['ACL_PASSWORD']
 FTP_LANDING_DIR                = os.environ['ACL_LANDING_DIR']
@@ -45,6 +47,7 @@ RDS_DATABASE                   = os.environ['ACL_RDS_DATABASE']
 RDS_USERNAME                   = os.environ['ACL_RDS_USERNAME']
 RDS_PASSWORD                   = os.environ['ACL_RDS_PASSWORD']
 RDS_TABLE                      = os.environ['ACL_RDS_TABLE']
+SLACK_WEBHOOK                  = os.environ['SLACK_WEBHOOK']
 
 # Setup RDS connection
 
@@ -60,7 +63,6 @@ def run_virus_scan(filename):
     """
     logger = logging.getLogger()
     logger.info("Virus Scanning %s folder", filename)
-    # do quarantine move using via the virus scanner
     file_list = os.listdir(filename)
     for scan_file in file_list:
         processing = os.path.join(STAGING_DIR, scan_file)
@@ -69,10 +71,12 @@ def run_virus_scan(filename):
                                      files={'file': scan}, data={'name': scan_file})
             if not 'Everything ok : true' in response.text:
                 logger.warning("Virus scan FAIL: %s is dangerous!", scan_file)
+                warning = ("Virus scan FAIL: " + scan_file + " is dangerous!")
+                send_message_to_slack(str(warning))
                 file_quarantine = os.path.join(QUARANTINE_DIR, scan_file)
                 logger.warning("Move %s from staging to quarantine %s", processing, file_quarantine)
                 os.rename(processing, file_quarantine)
-                return False
+                continue
             else:
                 logger.info("Virus scan OK: %s", scan_file)
     return True
@@ -85,8 +89,11 @@ def rds_insert(table, filename):
     try:
         CUR.execute(sql.SQL("INSERT INTO {} values (%s)").format(sql.Identifier(table)), (filename,))
         CONN.commit()
-    except Exception:
-        logger.exception("INSERT ERROR")
+    except Exception as err:
+        logger.error("INSERT ERROR")
+        logger.exception(str(err))
+        error = str(err)
+        send_message_to_slack(error)
         sys.exit(1)
 
 def rds_query(table, filename):
@@ -97,18 +104,64 @@ def rds_query(table, filename):
     try:
         CUR.execute(sql.SQL("SELECT * FROM {} WHERE filename = (%s)").format(sql.Identifier(table)), (filename,))
         CONN.commit()
-    except Exception:
-        logger.exception("QUERY ERROR")
+    except Exception as err:
+        logger.error("QUERY ERROR")
+        logger.exception(str(err))
+        error = str(err)
+        send_message_to_slack(error)
         sys.exit(1)
     if CUR.fetchone():
         return 1
     else:
         return 0
 
+def send_message_to_slack(text):
+    """
+    Formats the text and posts to a specific Slack web app's URL
+    Returns:
+        Slack API repsonse
+    """
+    logger = logging.getLogger()
+    try:
+        post = {
+            "text": ":fire: :party_k8s: :sad_parrot: An error has occured in the ACL pod :sad_parrot: :party_k8s: :fire:",
+            "attachments": [
+                {
+                    "text": "{0}".format(text),
+                    "color": "#B22222",
+                    "attachment_type": "default",
+                    "fields": [
+                        {
+                            "title": "Priority",
+                            "value": "High",
+                            "short": "false"
+                        }
+                    ],
+                    "footer": "Kubernetes API",
+                    "footer_icon": "https://platform.slack-edge.com/img/default_application_icon.png"
+                }
+            ]
+            }
+        json_data = json.dumps(post)
+        req = urllib.request.Request(url=SLACK_WEBHOOK,
+                                     data=json_data.encode('utf-8'),
+                                     headers={'Content-Type': 'application/json'})
+        resp = urllib.request.urlopen(req)
+        return resp
+
+    except Exception as err:
+        logger.error(
+            'The following error has occurred on line: %s',
+            sys.exc_info()[2].tb_lineno)
+        logger.error(str(err))
+        sys.exit(1)
+
+
 def main():
     """
     Main function
     """
+# Setup logging and global variables
     logformat = '%(asctime)s\t%(name)s\t%(levelname)s\t%(message)s'
     form = logging.Formatter(logformat)
     logging.basicConfig(
@@ -139,7 +192,7 @@ def main():
     uploadcount = 0
     secondary_uploadcount = 0
 
-# Connect and GET files
+# Connect and GET files from FTP
     logger.info("Connecting via FTP")
     with ftputil.FTPHost(FTP_SERVER, FTP_USERNAME, FTP_PASSWORD) as ftp_host:
         logger.info("Connected")
@@ -152,8 +205,11 @@ def main():
                 if match is not None:
                     try:
                         result = rds_query(RDS_TABLE, file_csv)
-                    except Exception:
-                        logger.exception("Error running SQL query")
+                    except Exception as err:
+                        logger.error("Error running SQL query")
+                        logger.exception(str(err))
+                        error = str(err)
+                        send_message_to_slack(error)
                         sys.exit(1)
                     if result == 0:
                         download = True
@@ -174,14 +230,17 @@ def main():
                             logger.info("File %s exist - skipping...", file_csv)
                     if download:
                         logger.info("Downloading %s to %s", file_csv, file_csv_staging)
-                        ftp_host.download(file_csv, file_csv_staging) # remote, local (staging)
+                        ftp_host.download(file_csv, file_csv_staging)
                         logger.info("Downloaded %s", file_csv)
                     else:
                         logger.error("Could not download %s from FTP", file_csv)
                         continue
 
-        except Exception:
-            logger.exception("Failure")
+        except Exception as err:
+            logger.error("Failure getting files from FTP")
+            logger.exception(str(err))
+            error = str(err)
+            send_message_to_slack(error)
             sys.exit(1)
 
 # Run virus scan
@@ -218,13 +277,18 @@ def main():
                 s3_conn = boto_s3_session.client("s3")
                 full_filepath = os.path.join(DOWNLOAD_DIR, filename)
                 if os.path.isfile(full_filepath):
-                    logger.info("Copying %s to S3", filename)
-                    s3_conn.upload_file(full_filepath, BUCKET_NAME,
-                                        BUCKET_KEY_PREFIX + "/" + filename)
-                    uploadcount += 1
-                else:
-                    logger.error("Failed to upload %s, exiting...", filename)
-                    break
+                    try:
+                        logger.info("Copying %s to S3", filename)
+                        s3_conn.upload_file(full_filepath, BUCKET_NAME,
+                                            BUCKET_KEY_PREFIX + "/" + filename)
+                        uploadcount += 1
+                    except Exception as err:
+                        logger.error(
+                            "Failed to upload %s, exiting...", filename)
+                        logger.exception(str(err))
+                        error = str(err)
+                        send_message_to_slack(error)
+                        sys.exit(1)
             logger.info("Uploaded %s files to %s", uploadcount, BUCKET_NAME)
 # Moving files to Secondary S3 bucket
         for filename in processed_acl_file_list:
@@ -240,8 +304,12 @@ def main():
                                                   SECONDARY_S3_BUCKET_NAME,
                                                   secondary_bucket_key_prefix + "/" + filename)
                     secondary_uploadcount += 1
-                except Exception:
-                    logger.exception("Failed to upload %s, exiting...", filename)
+                except Exception as err:
+                    logger.error(
+                        "Failed to upload %s, exiting...", filename)
+                    logger.exception(str(err))
+                    error = str(err)
+                    send_message_to_slack(error)
                     sys.exit(1)
         logger.info("Uploaded %s files to %s", secondary_uploadcount, SECONDARY_S3_BUCKET_NAME)
 # Cleaning up
@@ -251,9 +319,11 @@ def main():
             os.remove(full_filepath)
             logger.info("Cleaning up local file %s", filename)
         except Exception:
-            logger.exception("Failed to delete file %s", filename)
+            logger.error("Failed to delete file %s", filename)
+            logger.exception(str(err))
+            error = str(err)
+            send_message_to_slack(error)
             sys.exit(1)
-# end def main
 
 if __name__ == '__main__':
     main()
