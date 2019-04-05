@@ -12,7 +12,7 @@ Tasks include:
 ## Dependencies
 
 - Docker
-- Python2.7
+- Python3.7
 - Drone
 - AWS CLI
 - AWS Keys with PUT access to S3
@@ -93,9 +93,13 @@ The script will require the following variables passed in at runtime.
 | --- |:---:| :---:| --- |
 | mountpoint | /local/path | True | Local Docker mountpoint |
 | bucketname | s3-bucket-name | True | S3 bucket name |
+| secondarybucketname | s3-bucket-name | True | S3 bucket name |
 | keyprefix | prefix | True | S3 folder name |
 | awskeyid | ABCD | True | AWS access key ID |
+| secondaryawskeyid | ABCD | True | AWS access key ID |
 | awssecret | abcdb1234 | True | AWS Secret access key |
+| secondaryawssecret | abcdb1234 | True | AWS Secret access key |
+| webhook | https://hooks.slack.com/services/ABCDE12345 | True | Slack Webhook URL |
 
 - Components:
   - FTP container
