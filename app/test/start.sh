@@ -34,6 +34,8 @@ echo "Enter awssecret and press [ENTER]: "
 read awssecret
 echo "Enter secondaryawssecret and press [ENTER]: "
 read secondaryawssecret
+echo "Enter webhook and press [ENTER]: "
+read webhook
 
 # Create random password
 echo "********************************************"
@@ -142,6 +144,7 @@ function python {
         -e ACL_RDS_USERNAME=$username \
         -e ACL_RDS_PASSWORD=$randompass \
         -e ACL_RDS_TABLE=$table \
+        -e SLACK_WEBHOOK=$webhook \
         --link clamav-api:clamav-api \
         --link postgresql:postgresql \
         --link ftp:ftp \

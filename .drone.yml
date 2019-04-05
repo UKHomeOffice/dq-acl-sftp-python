@@ -47,6 +47,7 @@ pipeline:
       - export ACL_RDS_USERNAME=$$NOTPROD_ACL_RDS_USERNAME
       - export ACL_RDS_PASSWORD=$$NOTPROD_ACL_RDS_PASSWORD
       - export ACL_RDS_TABLE=$$NOTPROD_ACL_RDS_TABLE
+      - export SLACK_WEBHOOK=$$NOTPROD_SLACK_WEBHOOK
       - kd -f kube/pvc.yml -f kube/secret.yml -f kube/deployment.yml
     secrets:
       - NOTPROD_KUBE_TOKEN
@@ -67,6 +68,7 @@ pipeline:
       - NOTPROD_ACL_RDS_USERNAME
       - NOTPROD_ACL_RDS_PASSWORD
       - NOTPROD_ACL_RDS_TABLE
+      - NOTPROD_SLACK_WEBHOOK
     when:
       event: push
 
@@ -103,6 +105,7 @@ pipeline:
       - export ACL_RDS_USERNAME=$$PROD_ACL_RDS_USERNAME
       - export ACL_RDS_PASSWORD=$$PROD_ACL_RDS_PASSWORD
       - export ACL_RDS_TABLE=$$PROD_ACL_RDS_TABLE
+      - export SLACK_WEBHOOK=$$PROD_SLACK_WEBHOOK
       - kd -f kube/pvc.yml -f kube/secret.yml -f kube/deployment.yml
     secrets:
       - PROD_KUBE_TOKEN
@@ -123,6 +126,7 @@ pipeline:
       - PROD_ACL_RDS_USERNAME
       - PROD_ACL_RDS_PASSWORD
       - PROD_ACL_RDS_TABLE
+      - PROD_SLACK_WEBHOOK
     when:
       environment: production
       branch: master
