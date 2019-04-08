@@ -124,7 +124,7 @@ def send_message_to_slack(text):
     logger = logging.getLogger()
     try:
         post = {
-            "text": ":fire: :party_k8s: :sad_parrot: An error has occured in the ACL pod :sad_parrot: :party_k8s: :fire:",
+            "text": ":fire: :sad_parrot: An error has occured in the *ACL* pod :sad_parrot: :fire:",
             "attachments": [
                 {
                     "text": "{0}".format(text),
@@ -194,116 +194,103 @@ def main():
 
 # Connect and GET files from FTP
     logger.info("Connecting via FTP")
-    with ftputil.FTPHost(FTP_SERVER, FTP_USERNAME, FTP_PASSWORD) as ftp_host:
-        logger.info("Connected")
-        try:
-            ftp_host.chdir(FTP_LANDING_DIR)
-            files = ftp_host.listdir(ftp_host.curdir)
-            for file_csv in files:
-                match = re.search(r'^(.*?)homeofficeroll(\d+)_(\d{4}\d{2}\d{2})\.csv$', file_csv, re.IGNORECASE)
-                download = False
-                if match is not None:
-                    try:
-                        result = rds_query(RDS_TABLE, file_csv)
-                    except Exception as err:
-                        logger.error("Error running SQL query")
-                        logger.exception(str(err))
-                        error = str(err)
-                        send_message_to_slack(error)
-                        sys.exit(1)
-                    if result == 0:
-                        download = True
-                        logger.info("File %s downloaded", file_csv)
-                        rds_insert(RDS_TABLE, file_csv)
-                        logger.info("File %s added to RDS", file_csv)
-                    else:
-                        logger.debug("Skipping %s", file_csv)
-                        continue
+    try:
+        with ftputil.FTPHost(FTP_SERVER, FTP_USERNAME, FTP_PASSWORD) as ftp_host:
+            logger.info("Connected")
+            try:
+                ftp_host.chdir(FTP_LANDING_DIR)
+                files = ftp_host.listdir(ftp_host.curdir)
+                for file_csv in files:
+                    match = re.search(r'^(.*?)homeofficeroll(\d+)_(\d{4}\d{2}\d{2})\.csv$', file_csv, re.IGNORECASE)
+                    download = False
+                    if match is not None:
+                        try:
+                            result = rds_query(RDS_TABLE, file_csv)
+                        except Exception as err:
+                            logger.error("Error running SQL query")
+                            logger.exception(str(err))
+                            error = str(err)
+                            send_message_to_slack(error)
+                            sys.exit(1)
+                        if result == 0:
+                            download = True
+                            logger.info("File %s downloaded", file_csv)
+                            rds_insert(RDS_TABLE, file_csv)
+                            logger.info("File %s added to RDS", file_csv)
+                        else:
+                            logger.debug("Skipping %s", file_csv)
+                            continue
 
-                    file_csv_staging = os.path.join(STAGING_DIR, file_csv)
+                        file_csv_staging = os.path.join(STAGING_DIR, file_csv)
 
-# Protection against redownload
-                    if os.path.isfile(file_csv_staging) and os.path.getsize(file_csv_staging) > 0 and os.path.getsize(file_csv_staging) == ftp_host.stat(file_csv).st_size:
-                        download = False
-                        validate = rds_query(RDS_TABLE, file_csv)
-                        if validate == 1:
-                            logger.info("File %s exist - skipping...", file_csv)
-                    if download:
-                        logger.info("Downloading %s to %s", file_csv, file_csv_staging)
-                        ftp_host.download(file_csv, file_csv_staging)
-                        logger.info("Downloaded %s", file_csv)
-                    else:
-                        logger.error("Could not download %s from FTP", file_csv)
-                        continue
+    # Protection against redownload
+                        if os.path.isfile(file_csv_staging) and os.path.getsize(file_csv_staging) > 0 and os.path.getsize(file_csv_staging) == ftp_host.stat(file_csv).st_size:
+                            download = False
+                            validate = rds_query(RDS_TABLE, file_csv)
+                            if validate == 1:
+                                logger.info("File %s exist - skipping...", file_csv)
+                        if download:
+                            logger.info("Downloading %s to %s", file_csv, file_csv_staging)
+                            ftp_host.download(file_csv, file_csv_staging)
+                            logger.info("Downloaded %s", file_csv)
+                        else:
+                            logger.error("Could not download %s from FTP", file_csv)
+                            continue
 
-        except Exception as err:
-            logger.error("Failure getting files from FTP")
-            logger.exception(str(err))
-            error = str(err)
-            send_message_to_slack(error)
-            sys.exit(1)
+            except Exception as err:
+                logger.error("Failure getting files from FTP")
+                logger.exception(str(err))
+                error = str(err)
+                send_message_to_slack(error)
+                sys.exit(1)
+
+    except Exception as err:
+        logger.error("Could not connect to FTP")
+        logger.exception(str(err))
+        error = str(err)
+        send_message_to_slack(error)
+        sys.exit(1)
+
 
 # Run virus scan
-        if run_virus_scan(STAGING_DIR):
-            for obj in os.listdir(STAGING_DIR):
-                scanner = rds_query(RDS_TABLE, obj)
-                if scanner == 1:
-                    file_download = os.path.join(DOWNLOAD_DIR, obj)
-                    file_staging = os.path.join(STAGING_DIR, obj)
-                    logger.info("Move %s from staging to download %s", file_staging, file_download)
-                    os.rename(file_staging, file_download)
-                    file_done_download = file_download + '.done'
-                    open(file_done_download, 'w').close()
-                    downloadcount += 1
-                else:
-                    logger.error("Could not run virus scan on %s", obj)
-                    break
-            logger.info("Downloaded %s files", downloadcount)
+    if run_virus_scan(STAGING_DIR):
+        for obj in os.listdir(STAGING_DIR):
+            scanner = rds_query(RDS_TABLE, obj)
+            if scanner == 1:
+                file_download = os.path.join(DOWNLOAD_DIR, obj)
+                file_staging = os.path.join(STAGING_DIR, obj)
+                logger.info("Move %s from staging to download %s", file_staging, file_download)
+                os.rename(file_staging, file_download)
+                file_done_download = file_download + '.done'
+                open(file_done_download, 'w').close()
+                downloadcount += 1
+            else:
+                logger.error("Could not run virus scan on %s", obj)
+                break
+        logger.info("Downloaded %s files", downloadcount)
 
 # Move files to S3
-        processed_acl_file_list = [filename for filename in os.listdir(DOWNLOAD_DIR)]
-        boto_s3_session = boto3.Session(
-            aws_access_key_id=S3_ACCESS_KEY_ID,
-            aws_secret_access_key=S3_SECRET_ACCESS_KEY,
-            region_name=S3_REGION_NAME
-        )
-        boto_secondary_s3_session = boto3.Session(
-            aws_access_key_id=SECONDARY_S3_ACCESS_KEY_ID,
-            aws_secret_access_key=SECONDARY_S3_SECRET_ACCESS_KEY,
-            region_name=S3_REGION_NAME
-        )
-        if processed_acl_file_list:
-            for filename in processed_acl_file_list:
-                s3_conn = boto_s3_session.client("s3")
-                full_filepath = os.path.join(DOWNLOAD_DIR, filename)
-                if os.path.isfile(full_filepath):
-                    try:
-                        logger.info("Copying %s to S3", filename)
-                        s3_conn.upload_file(full_filepath, BUCKET_NAME,
-                                            BUCKET_KEY_PREFIX + "/" + filename)
-                        uploadcount += 1
-                    except Exception as err:
-                        logger.error(
-                            "Failed to upload %s, exiting...", filename)
-                        logger.exception(str(err))
-                        error = str(err)
-                        send_message_to_slack(error)
-                        sys.exit(1)
-            logger.info("Uploaded %s files to %s", uploadcount, BUCKET_NAME)
-# Moving files to Secondary S3 bucket
+    processed_acl_file_list = [filename for filename in os.listdir(DOWNLOAD_DIR)]
+    boto_s3_session = boto3.Session(
+        aws_access_key_id=S3_ACCESS_KEY_ID,
+        aws_secret_access_key=S3_SECRET_ACCESS_KEY,
+        region_name=S3_REGION_NAME
+    )
+    boto_secondary_s3_session = boto3.Session(
+        aws_access_key_id=SECONDARY_S3_ACCESS_KEY_ID,
+        aws_secret_access_key=SECONDARY_S3_SECRET_ACCESS_KEY,
+        region_name=S3_REGION_NAME
+    )
+    if processed_acl_file_list:
         for filename in processed_acl_file_list:
-            match = re.search(r'^(.*?)homeofficeroll(\d+)_(\d{4}\d{2}\d{2})\.csv$', filename, re.IGNORECASE)
-            if match is not None:
+            s3_conn = boto_s3_session.client("s3")
+            full_filepath = os.path.join(DOWNLOAD_DIR, filename)
+            if os.path.isfile(full_filepath):
                 try:
-                    time = datetime.datetime.now()
-                    secondary_bucket_key_prefix = time.strftime("%Y-%m-%d/%H:%M:%S.%f")
-                    secondary_full_filepath = os.path.join(DOWNLOAD_DIR, filename)
-                    secondary_s3_conn = boto_secondary_s3_session.client("s3")
-                    logger.info("Copying %s to S3 %s bucket", filename, SECONDARY_S3_BUCKET_NAME)
-                    secondary_s3_conn.upload_file(secondary_full_filepath,
-                                                  SECONDARY_S3_BUCKET_NAME,
-                                                  secondary_bucket_key_prefix + "/" + filename)
-                    secondary_uploadcount += 1
+                    logger.info("Copying %s to S3", filename)
+                    s3_conn.upload_file(full_filepath, BUCKET_NAME,
+                                        BUCKET_KEY_PREFIX + "/" + filename)
+                    uploadcount += 1
                 except Exception as err:
                     logger.error(
                         "Failed to upload %s, exiting...", filename)
@@ -311,7 +298,29 @@ def main():
                     error = str(err)
                     send_message_to_slack(error)
                     sys.exit(1)
-        logger.info("Uploaded %s files to %s", secondary_uploadcount, SECONDARY_S3_BUCKET_NAME)
+        logger.info("Uploaded %s files to %s", uploadcount, BUCKET_NAME)
+# Moving files to Secondary S3 bucket
+    for filename in processed_acl_file_list:
+        match = re.search(r'^(.*?)homeofficeroll(\d+)_(\d{4}\d{2}\d{2})\.csv$', filename, re.IGNORECASE)
+        if match is not None:
+            try:
+                time = datetime.datetime.now()
+                secondary_bucket_key_prefix = time.strftime("%Y-%m-%d/%H:%M:%S.%f")
+                secondary_full_filepath = os.path.join(DOWNLOAD_DIR, filename)
+                secondary_s3_conn = boto_secondary_s3_session.client("s3")
+                logger.info("Copying %s to S3 %s bucket", filename, SECONDARY_S3_BUCKET_NAME)
+                secondary_s3_conn.upload_file(secondary_full_filepath,
+                                              SECONDARY_S3_BUCKET_NAME,
+                                              secondary_bucket_key_prefix + "/" + filename)
+                secondary_uploadcount += 1
+            except Exception as err:
+                logger.error(
+                    "Failed to upload %s, exiting...", filename)
+                logger.exception(str(err))
+                error = str(err)
+                send_message_to_slack(error)
+                sys.exit(1)
+    logger.info("Uploaded %s files to %s", secondary_uploadcount, SECONDARY_S3_BUCKET_NAME)
 # Cleaning up
     for filename in processed_acl_file_list:
         try:
