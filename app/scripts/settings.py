@@ -4,18 +4,14 @@ environment variables"""
 import os
 
 """DQ ACL file ingest"""
-PROCESS_INTERVAL               = int(os.environ.get('PROCESS_INTERVAL', 60))
+PROCESS_INTERVAL               = int(os.environ.get('PROCESS_INTERVAL', 900))
 ACL_SERVER                     = os.environ.get('ACL_SERVER')
 ACL_USERNAME                   = os.environ.get('ACL_USERNAME')
 ACL_PASSWORD                   = os.environ.get('ACL_PASSWORD')
 ACL_LANDING_DIR                = os.environ.get('ACL_LANDING_DIR')
 S3_BUCKET_NAME                 = os.environ.get('S3_BUCKET_NAME')
-S3_KEY_PREFIX                  = os.environ.get('S3_KEY_PREFIX')
 S3_ACCESS_KEY_ID               = os.environ.get('S3_ACCESS_KEY_ID')
 S3_SECRET_ACCESS_KEY           = os.environ.get('S3_SECRET_ACCESS_KEY')
-SECONDARY_S3_BUCKET_NAME       = os.environ.get('SECONDARY_S3_BUCKET_NAME')
-SECONDARY_S3_ACCESS_KEY_ID     = os.environ.get('SECONDARY_S3_ACCESS_KEY_ID')
-SECONDARY_S3_SECRET_ACCESS_KEY = os.environ.get('SECONDARY_S3_SECRET_ACCESS_KEY')
 CLAMAV_URL                     = os.environ.get('CLAMAV_URL')
 CLAMAV_PORT                    = os.environ.get('CLAMAV_PORT')
 ACL_RDS_HOST                   = os.environ.get('ACL_RDS_HOST')
