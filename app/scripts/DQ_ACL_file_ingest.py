@@ -256,7 +256,6 @@ def main():
                 file_staging = os.path.join(STAGING_DIR, obj)
                 logger.info("Move %s from staging to download %s", file_staging, file_download)
                 os.rename(file_staging, file_download)
-                file_done_download = file_download + '.done'
                 open(file_done_download, 'w').close()
                 downloadcount += 1
             else:
