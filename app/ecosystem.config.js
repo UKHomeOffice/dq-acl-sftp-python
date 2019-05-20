@@ -20,17 +20,14 @@ module.exports = {
         S3_ACCESS_KEY_ID : process.argv[11],
         S3_SECRET_ACCESS_KEY : process.argv[12],
         S3_REGION_NAME : "eu-west-2",
-        SECONDARY_S3_BUCKET_NAME : process.argv[13],
-        SECONDARY_S3_ACCESS_KEY_ID : process.argv[14],
-        SECONDARY_S3_SECRET_ACCESS_KEY : process.argv[15],
-        CLAMAV_URL : process.argv[16],
-        CLAMAV_PORT : process.argv[17],
-        ACL_RDS_HOST : process.argv[18],
-        ACL_RDS_DATABASE : process.argv[19],
-        ACL_RDS_USERNAME : process.argv[20],
-        ACL_RDS_PASSWORD : process.argv[21],
-        ACL_RDS_TABLE : process.argv[22],
-        SLACK_WEBHOOK : process.argv[23]
+        CLAMAV_URL : process.argv[13],
+        CLAMAV_PORT : process.argv[14],
+        ACL_RDS_HOST : process.argv[15],
+        ACL_RDS_DATABASE : process.argv[16],
+        ACL_RDS_USERNAME : process.argv[17],
+        ACL_RDS_PASSWORD : process.argv[18],
+        ACL_RDS_TABLE : process.argv[19],
+        SLACK_WEBHOOK : process.argv[20]
       }
     }
   ]
