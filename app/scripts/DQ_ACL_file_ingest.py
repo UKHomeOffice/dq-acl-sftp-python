@@ -33,7 +33,6 @@ QUARANTINE_DIR                 = '/ADT/quarantine/acl'
 SCRIPT_DIR                     = '/ADT/scripts'
 LOG_FILE                       = '/ADT/log/DQ_FTP_ACL.log'
 BUCKET_NAME                    = os.environ['S3_BUCKET_NAME']
-BUCKET_KEY_PREFIX              = os.environ['S3_KEY_PREFIX']
 S3_ACCESS_KEY_ID               = os.environ['S3_ACCESS_KEY_ID']
 S3_SECRET_ACCESS_KEY           = os.environ['S3_SECRET_ACCESS_KEY']
 S3_REGION_NAME                 = os.environ['S3_REGION_NAME']
@@ -278,9 +277,11 @@ def main():
             full_filepath = os.path.join(DOWNLOAD_DIR, filename)
             if os.path.isfile(full_filepath):
                 try:
+                    time = datetime.datetime.now()
+                    bucket_key_prefix = time.strftime("%Y-%m-%d/%H:%M:%S.%f")
                     logger.info("Copying %s to S3", filename)
                     s3_conn.upload_file(full_filepath, BUCKET_NAME,
-                                        BUCKET_KEY_PREFIX + "/" + filename)
+                                        bucket_key_prefix + "/" + filename)
                     uploadcount += 1
                 except Exception as err:
                     logger.error(
