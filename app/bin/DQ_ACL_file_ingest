@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 # This script runs the DQ_ACL_file_ingest.py script at a time interval that is set.
 #
