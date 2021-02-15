@@ -19,15 +19,15 @@ pipeline:
     environment:
       - KUBE_NAMESPACE=dq-apps-notprod
       - INSECURE_SKIP_TLS_VERIFY=true
-      - ACL_PVC_SIZE=1Gi
-      - ACL_CPU_REQUEST=1
-      - ACL_CPU_LIMIT=1.5
-      - ACL_RAM_REQUEST=1Gi
-      - ACL_RAM_LIMIT=1.5Gi
-      - CLAMAV_CPU_REQUEST=1
-      - CLAMAV_CPU_LIMIT=1.5
-      - CLAMAV_RAM_REQUEST=1Gi
-      - CLAMAV_RAM_LIMIT=1.5Gi
+      - ACL_PVC_SIZE=5Gi
+      - ACL_CPU_REQUEST=2
+      - ACL_CPU_LIMIT=2.5
+      - ACL_RAM_REQUEST=3Gi
+      - ACL_RAM_LIMIT=4Gi
+      - CLAMAV_CPU_REQUEST=2
+      - CLAMAV_CPU_LIMIT=2.5
+      - CLAMAV_RAM_REQUEST=3Gi
+      - CLAMAV_RAM_LIMIT=4Gi
     commands:
       - export KUBE_TOKEN=$$NOTPROD_KUBE_TOKEN
       - export KUBE_SERVER=$$NOTPROD_KUBE_SERVER
