@@ -161,11 +161,11 @@ spec:
         - containerPort: 3310
           name: api
           protocol: TCP
-        livenessProbe:
-          exec:
-            command:
-            - /readyness.sh
-          initialDelaySeconds: 90
-          timeoutSeconds: 10
-          periodSeconds: 30
-          failureThreshold: 10
+        # livenessProbe:
+        #   exec:
+        #     command:
+        #     - /readyness.sh
+        #   initialDelaySeconds: 90
+        #   timeoutSeconds: 10
+        #   periodSeconds: 30
+        #   failureThreshold: 10
