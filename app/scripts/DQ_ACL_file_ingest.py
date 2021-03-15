@@ -21,6 +21,7 @@ import requests
 import psycopg2
 from psycopg2 import sql
 import ftputil
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 
 FTP_SERVER                     = os.environ['ACL_SERVER']
@@ -57,14 +58,14 @@ def run_virus_scan(filename):
     """
     Send a file to scanner API
     """
+    requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
     logger = logging.getLogger()
     logger.info("Virus Scanning %s folder", filename)
     file_list = os.listdir(filename)
     for scan_file in file_list:
         processing = os.path.join(STAGING_DIR, scan_file)
         with open(processing, 'rb') as scan:
-            response = requests.post('http://' + BASE_URL + ':' + BASE_PORT + '/scan',
-                                     files={'file': scan}, data={'name': scan_file})
+            response = requests.post('https://' + BASE_URL + ':' + BASE_PORT + '/scan', files={'file': scan}, data={'name': scan_file}, verify=False)
             if not 'Everything ok : true' in response.text:
                 logger.warning("Virus scan FAIL: %s is dangerous!", scan_file)
                 warning = ("Virus scan FAIL: " + scan_file + " is dangerous!")
