@@ -2,8 +2,7 @@
 
 [![Docker Repository on Quay](https://quay.io/repository/ukhomeofficedigital/dq-acl-sftp-python/status "Docker Repository on Quay")](https://quay.io/repository/ukhomeofficedigital/dq-acl-sftp-python)
 
-A collection of Docker containers and RDS instance running a data pipeline.
-Tasks include:
+A Docker container that runs the following Tasks:
 - FTP LIST and check against a table in RDS PostgreSQL, add if required
 - FTP GET from a remote FTP server
 - Running virus check on each file pulled from FTP by sending them to ClamAV API
@@ -52,8 +51,6 @@ The POD consists of 3 (three) Docker containers responsible for handling data.
 | Container Name | Function | Language | Exposed port | Managed by |
 | :--- | :---: | :---: | ---: | --- |
 | dq-acl-data-ingest | Data pipeline app| Python2.7 | N/A | DQ Devops |
-| clamav-api | API for virus checks | N/A | 8080 |ACP |
-| clamav | Database for virus checks | N/A | 3310 |ACP |
 
 
 ## RDS PostgreSQL connectivity
@@ -71,8 +68,7 @@ The *dq-acl-data-ingest* container connects to the PostgreSQL backend at each ru
 
 - *dq-acl-data-ingest* lists files on an FTP server and only move to the next step of the file does not yet exist in the RDS database table
 - *dq-acl-data-ingest* GET files from an external FTP server
-- sending these files to *clamav-api* with destination *localhost:8080*
-- files are being sent from *clamav-api* to *clamav* with destination *localhost:3310*
+- sending these files to *clamav-api* with destination *dq-clamav:443*
 - *OK* or *!OK* response text is sent back to *dq-acl-data-ingest*
   - *IF OK* file is uploaded to S3 and deleted from local storage
   - *IF !OK* file is moved to quarantine on the PVC
@@ -103,8 +99,6 @@ The script will require the following variables passed in at runtime.
 
 - Components:
   - FTP container
-  - ClamAV container
-  - ClamAV REST API container
   - PostgreSQL container
   - PostgreSQL sidekick container
   - ACL Python container
