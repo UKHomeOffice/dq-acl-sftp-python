@@ -106,9 +106,9 @@ spec:
                 name: dq-acl-data-ingest
                 key: SLACK_WEBHOOK
           - name: CLAMAV_URL
-            value: "127.0.0.1"
+            value: "dq-clamav"
           - name: CLAMAV_PORT
-            value: "8080"
+            value: "443"
         volumeMounts:
         - name: acl-volume
           mountPath: /ADT
