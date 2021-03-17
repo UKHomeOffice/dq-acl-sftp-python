@@ -29,6 +29,20 @@ steps:
     event:
     - push
 
+- name: anchore_scan
+  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/anchore-submission:latest
+  pull: always
+  environment:
+    #NOTE: Image name can't be a variable here!
+    IMAGE_NAME: quay.io/ukhomeofficedigital/dq-acl-sftp-python:${DRONE_COMMIT_SHA}
+    LOCAL_IMAGE: false
+    SHOW_ALL_VULNERABILITIES: true
+    TOLERATE: medium
+    FAIL_ON_DETECTION: false
+  when:
+    event:
+      - push
+
 - name: deploy_to_dev
   pull: if-not-exists
   image: quay.io/ukhomeofficedigital/kd
@@ -168,3 +182,8 @@ steps:
 services:
   - name: docker
     image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
+  - name: anchore-submission-server
+    image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/anchore-submission:latest
+    pull: always
+    commands:
+      - /run.sh server
