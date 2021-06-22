@@ -64,6 +64,7 @@ steps:
   - kd --delete --file kube/deployment.yml
   - kd -f kube/pvc.yml -f kube/secret.yml -f kube/deployment.yml
   environment:
+    ENV: notprod
     ACL_CPU_LIMIT: 2.5
     ACL_CPU_REQUEST: 2
     ACL_PVC_SIZE: 5Gi
@@ -130,6 +131,7 @@ steps:
   - kd --delete --file kube/deployment.yml
   - kd -f kube/pvc.yml -f kube/secret.yml -f kube/deployment.yml
   environment:
+    ENV: prod
     ACL_CPU_LIMIT: 2.5
     ACL_CPU_REQUEST: 2
     ACL_PVC_SIZE: 5Gi
