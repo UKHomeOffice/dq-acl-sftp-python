@@ -10,7 +10,7 @@ module.exports = {
       script    : "/ADT/bin/DQ_ACL_file_ingest",
       interpreter: "python3",
       env: {
-        PROCESS_INTERVAL: 60,
+        PROCESS_INTERVAL: 900,
         ACL_SERVER : process.argv[5],
         ACL_USERNAME : process.argv[6],
         ACL_PASSWORD : process.argv[7],
