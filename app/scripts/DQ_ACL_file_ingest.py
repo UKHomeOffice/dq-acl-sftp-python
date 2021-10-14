@@ -304,5 +304,9 @@ def main():
             send_message_to_slack(error)
             sys.exit(1)
 
+# Closing SFTP connection
+    ftp_host.close()
+    logger.info("Connection to FTP Closed")
+
 if __name__ == '__main__':
     main()
