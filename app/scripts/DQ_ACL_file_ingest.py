@@ -46,6 +46,8 @@ RDS_PASSWORD                   = os.environ['ACL_RDS_PASSWORD']
 RDS_TABLE                      = os.environ['ACL_RDS_TABLE']
 SLACK_WEBHOOK                  = os.environ['SLACK_WEBHOOK']
 
+logging.basicConfig(level=logging.DEBUG)
+
 # Setup RDS connection
 
 CONN = psycopg2.connect(host=RDS_HOST,
@@ -305,8 +307,8 @@ def main():
             sys.exit(1)
 
 # Closing SFTP connection
-    ftp_host.close()
-    logger.info("Connection to FTP Closed")
+    logging.debug(ftp_host.close())
+    logger.info("Connection closed")
 
 if __name__ == '__main__':
     main()
