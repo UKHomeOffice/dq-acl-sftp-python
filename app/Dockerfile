@@ -34,9 +34,6 @@ RUN groupadd -r runner && \
 RUN yum update -y
 RUN yum install -y wget make gcc openssl-devel zlib-devel pcre-devel bzip2-devel libffi-devel epel-release libpq-devel python3 python3-devel
 
-# Install Netstat for testing connections
-RUN yum install -y net-tools
-
 # Install modules with pip
 RUN pip3 install --no-cache-dir -r /tmp/ADT/scripts/packages.txt
 
