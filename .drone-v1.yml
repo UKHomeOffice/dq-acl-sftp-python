@@ -33,7 +33,7 @@ steps:
   pull: if-not-exists
   image: quay.io/ukhomeofficedigital/trivyscanner:master
   commands:
-  - trivy --ignore-unfixed --exit-code 1 --no-progress quay.io/ukhomeofficedigital/dq-acl-sftp-python:${DRONE_COMMIT_SHA}
+  - trivy image --ignore-unfixed --exit-code 1 --no-progress quay.io/ukhomeofficedigital/dq-acl-sftp-python:${DRONE_COMMIT_SHA}
   when:
     branch:
       exclude:
