@@ -39,8 +39,6 @@ RUN apk add --update py-pip && \
     apk add --update py3-psycopg2 && \
     apk add --update py3-cryptography
 
-RUN apk add --update vsftpd
-
 # Install PM2
 RUN apk add --update nodejs npm
 RUN npm install -g pm2 && \
@@ -56,7 +54,7 @@ USER ${USERMAP_UID}
 
 WORKDIR /ADT
 
-ENTRYPOINT ["/docker-entrypoint.sh"]
+ENTRYPOINT ["sh", "/docker-entrypoint.sh"]
 
 # Start PM2
 CMD pm2-docker /ADT/scripts/ecosystem.config.js  -- --config $ACL_SERVER $ACL_USERNAME $ACL_PASSWORD $ACL_LANDING_DIR $S3_BUCKET_NAME \
