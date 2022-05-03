@@ -34,11 +34,12 @@ RUN addgroup -g $RUNNER_UID runner && \
 # Install script dependencies
 RUN apk add --update py-pip && \
     apk add --update py3-boto3 && \
-    apk add --update py3-ftputil && \
     apk add --update py3-requests && \
     apk add --update py3-schedule && \
     apk add --update py3-psycopg2 && \
     apk add --update py3-cryptography
+
+RUN apk add --update vsftpd
 
 # Install PM2
 RUN apk add --update nodejs npm
