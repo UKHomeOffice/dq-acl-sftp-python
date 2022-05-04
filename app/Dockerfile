@@ -32,12 +32,16 @@ RUN addgroup -g $RUNNER_UID runner && \
     chown -R runner:runner /home/runner/.ssh
 
 # Install script dependencies
-RUN apk add --update py-pip && \
+RUN apk add --update py3-pip && \
     apk add --update py3-boto3 && \
     apk add --update py3-requests && \
     apk add --update py3-schedule && \
     apk add --update py3-psycopg2 && \
     apk add --update py3-cryptography
+
+# Wheel required for non-lagacy ftputil install
+RUN pip3 install wheel && \
+    pip3 install ftputil
 
 # Install PM2
 RUN apk add --update nodejs npm
