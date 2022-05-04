@@ -1,6 +1,8 @@
-FROM centos:8
+FROM quay.io/ukhomeofficedigital/dq-alpine:master
 
 ENV USERMAP_UID 1000
+ENV RUNNER_UID 1001
+ENV DOCKER_UID 1002
 ENV PYTHONPATH="$PYTHONPATH:/ADT"
 
 # Setup folder structure and copy files
@@ -22,25 +24,29 @@ ADD bin /tmp/ADT/bin
 ADD scripts /tmp/ADT/scripts
 
 # Add user
-RUN groupadd -r runner && \
-    useradd --no-log-init -u $USERMAP_UID -r -g runner runner && \
-    groupadd docker && \
-    usermod -aG docker runner && \
+RUN addgroup -g $RUNNER_UID runner && \
+    adduser -u $USERMAP_UID -G runner -D runner && \
+    addgroup -g $DOCKER_UID docker && \
     chown -R runner:runner /ADT && \
     chown -R runner:runner /home/runner/.pm2 && \
     chown -R runner:runner /home/runner/.ssh
 
 # Install script dependencies
-RUN yum update -y
-RUN yum install -y wget make gcc openssl-devel zlib-devel pcre-devel bzip2-devel libffi-devel epel-release libpq-devel python3 python3-devel
+RUN apk add --update py3-pip && \
+    apk add --update py3-boto3 && \
+    apk add --update py3-requests && \
+    apk add --update py3-schedule && \
+    apk add --update py3-psycopg2 && \
+    apk add --update py3-cryptography
 
-# Install modules with pip
-RUN pip3 install --no-cache-dir -r /tmp/ADT/scripts/packages.txt
+# Wheel required for non-legacy ftputil install
+RUN pip3 install wheel && \
+    pip3 install ftputil
 
 # Install PM2
-RUN curl -sL https://raw.githubusercontent.com/nodesource/distributions/master/rpm/setup_12.x -o setup_12.x && bash setup_12.x && rm setup_12.x && \
-    yum install -y nodejs && \
-    npm install -g pm2
+RUN apk add --update nodejs npm
+RUN npm install -g pm2 && \
+    npm update -g pm2
 
 VOLUME ["/ADT"]
 RUN chown -R runner:runner /ADT
@@ -52,7 +58,7 @@ USER ${USERMAP_UID}
 
 WORKDIR /ADT
 
-ENTRYPOINT ["/docker-entrypoint.sh"]
+ENTRYPOINT ["sh", "/docker-entrypoint.sh"]
 
 # Start PM2
 CMD pm2-docker /ADT/scripts/ecosystem.config.js  -- --config $ACL_SERVER $ACL_USERNAME $ACL_PASSWORD $ACL_LANDING_DIR $S3_BUCKET_NAME \
