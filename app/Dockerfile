@@ -39,7 +39,7 @@ RUN apk add --update py3-pip && \
     apk add --update py3-psycopg2 && \
     apk add --update py3-cryptography
 
-# Wheel required for non-lagacy ftputil install
+# Wheel required for non-legacy ftputil install
 RUN pip3 install wheel && \
     pip3 install ftputil
 
