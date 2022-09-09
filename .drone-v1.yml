@@ -111,33 +111,33 @@ steps:
     ACL_RAM_REQUEST: 3Gi
     INSECURE_SKIP_TLS_VERIFY: true
     KUBE_NAMESPACE: dq-apps-notprod
-    NOTPROD_ACL_LANDING_DIR:
+    ACL_LANDING_DIR:
       from_secret: NOTPROD_ACL_LANDING_DIR
-    NOTPROD_ACL_PASSWORD:
+    ACL_PASSWORD:
       from_secret: NOTPROD_ACL_PASSWORD
-    NOTPROD_ACL_RDS_DATABASE:
+    ACL_RDS_DATABASE:
       from_secret: NOTPROD_ACL_RDS_DATABASE
-    NOTPROD_ACL_RDS_HOST:
+    ACL_RDS_HOST:
       from_secret: NOTPROD_ACL_RDS_HOST
-    NOTPROD_ACL_RDS_PASSWORD:
+    ACL_RDS_PASSWORD:
       from_secret: NOTPROD_ACL_RDS_PASSWORD
-    NOTPROD_ACL_RDS_TABLE:
+    ACL_RDS_TABLE:
       from_secret: NOTPROD_ACL_RDS_TABLE
-    NOTPROD_ACL_RDS_USERNAME:
+    ACL_RDS_USERNAME:
       from_secret: NOTPROD_ACL_RDS_USERNAME
-    NOTPROD_ACL_SERVER:
+    ACL_SERVER:
       from_secret: NOTPROD_ACL_SERVER
-    NOTPROD_ACL_USERNAME:
+    ACL_USERNAME:
       from_secret: NOTPROD_ACL_USERNAME
-    NOTPROD_KUBE_SERVER:
+    KUBE_SERVER:
       from_secret: NOTPROD_KUBE_SERVER
-    NOTPROD_KUBE_TOKEN:
+    KUBE_TOKEN:
       from_secret: NOTPROD_KUBE_TOKEN
-    NOTPROD_S3_BUCKET_NAME:
+    S3_BUCKET_NAME:
       from_secret: NOTPROD_S3_BUCKET_NAME
-    NOTPROD_S3_KEY_PREFIX:
+    S3_KEY_PREFIX:
       from_secret: NOTPROD_S3_KEY_PREFIX
-    NOTPROD_SLACK_WEBHOOK:
+    SLACK_WEBHOOK:
       from_secret: NOTPROD_SLACK_WEBHOOK
   when:
     event:
@@ -241,7 +241,7 @@ steps:
       - cron
     cron:
       - renew-vault-tokens
-      
+
 services:
   - name: docker
     image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
