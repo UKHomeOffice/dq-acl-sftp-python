@@ -1,4 +1,9 @@
 ---
+global-variables:
+  vault-image: &vault-image docker.digital.homeoffice.gov.uk/dq/dq-vault-awscli:1.43
+  trivy-image: &trivy-image quay.io/ukhomeofficedigital/trivyscanner:master
+  kd-image: &kd-image quay.io/ukhomeofficedigital/kd
+
 kind: pipeline
 name: default
 type: kubernetes
@@ -6,6 +11,39 @@ type: kubernetes
 platform:
   os: linux
   arch: amd64
+
+x-anchors:
+  rotate-app-user-aws-key: &rotate-app-user-aws-key
+    # Retrive vault secrets
+    - vault read aws_dacc_dq/creds/drone > aws_creds.json
+    - export LEASE_ID=$(cat aws_creds.json | grep lease_id | awk -F ' ' '{print $2}')
+    # Update the token TTL to 10mins
+    - vault lease renew -increment=600 $${LEASE_ID}
+    # Get the AWS credentials
+    - export AWS_ACCESS_KEY_ID=$(cat aws_creds.json | grep access_key | awk -F ' ' '{print $2}')
+    - export AWS_SECRET_ACCESS_KEY=$(cat aws_creds.json | grep secret_key | awk -F ' ' '{print $2}')
+    - export AWS_DEFAULT_REGION=eu-west-2
+    # Since AWS is eventually consistent we need to sleep a little while so the AWS key is created and made available
+    - sleep 20
+    # get app key id from ssm
+    - export OLD_AWS_ACCESS_KEY_ID=$(aws ssm get-parameters --name $SSM_KEY_ID --query "Parameters[*].{Value:Value}" --with-decryption | grep Value | awk -F ' ' '{print $2}' | tr -d '"')
+    # generate new key & id for app user
+    - aws iam create-access-key --user-name $APP_USER_NAME > new-key.json
+    - export NEW_AWS_ACCESS_KEY_ID=$(cat new-key.json | grep AccessKeyId | awk -F ' ' '{print $2}' | tr -d '"' | tr -d ',')
+    - export NEW_AWS_SECRET_ACCESS_KEY=$(cat new-key.json | grep SecretAccessKey | awk -F ' ' '{print $2}' | tr -d '"' | tr -d ',')
+    # push new key & id to SSM
+    - aws ssm put-parameter --name $SSM_KEY_ID --type "SecureString" --value $NEW_AWS_ACCESS_KEY_ID --overwrite
+    - aws ssm put-parameter --name $SSM_SECURE_KEY --type "SecureString" --value $NEW_AWS_SECRET_ACCESS_KEY --overwrite
+    # delete old iam key &id
+    - aws iam delete-access-key --access-key-id $OLD_AWS_ACCESS_KEY_ID --user-name $APP_USER_NAME
+    # encode new key and id
+    - echo "export S3_ACCESS_KEY_ID=$(echo -n $NEW_AWS_ACCESS_KEY_ID | base64)" > new_iam_secret.sh
+    - echo "export S3_SECRET_ACCESS_KEY=$(echo -n $NEW_AWS_SECRET_ACCESS_KEY | base64)" >> new_iam_secret.sh
+
+  deploy-to-k8s: &deploy-to-k8s
+    - source new_iam_secret.sh
+    - kd --delete --file kube/deployment.yml
+    - kd -f kube/pvc.yml -f kube/secret.yml -f kube/deployment.yml
 
 steps:
 - name: build
@@ -31,7 +69,7 @@ steps:
 
 - name: trivy_scan
   pull: if-not-exists
-  image: quay.io/ukhomeofficedigital/trivyscanner:master
+  image: *trivy-image
   commands:
   - trivy image --ignore-unfixed --exit-code 1 --no-progress quay.io/ukhomeofficedigital/dq-acl-sftp-python:${DRONE_COMMIT_SHA}
   when:
@@ -41,28 +79,29 @@ steps:
     event:
     - push
 
+- name: rotate_aws_keys_dev
+  pull: if-not-exists
+  image: *vault-image
+  commands:
+    *rotate-app-user-aws-key
+  environment:
+    SSM_KEY_ID: acl-user-id-apps-notprod-dq
+    SSM_SECURE_KEY: acl-user-key-apps-notprod-dq
+    APP_USER_NAME:  iam-user-acl-apps-notprod-dq
+    ENV: notprod
+    VAULT_ADDR:
+      from_secret: VAULT_ADDR_NOTPROD
+    VAULT_TOKEN:
+      from_secret: VAULT_TOKEN_NOTPROD
+  when:
+    event:
+      - push
+
 - name: deploy_to_dev
   pull: if-not-exists
-  image: quay.io/ukhomeofficedigital/kd
+  image: *kd-image
   commands:
-  - export KUBE_TOKEN=$$NOTPROD_KUBE_TOKEN
-  - export KUBE_SERVER=$$NOTPROD_KUBE_SERVER
-  - export ACL_SERVER=$$NOTPROD_ACL_SERVER
-  - export ACL_USERNAME=$$NOTPROD_ACL_USERNAME
-  - export ACL_PASSWORD=$$NOTPROD_ACL_PASSWORD
-  - export ACL_LANDING_DIR=$$NOTPROD_ACL_LANDING_DIR
-  - export S3_BUCKET_NAME=$$NOTPROD_S3_BUCKET_NAME
-  - export S3_KEY_PREFIX=$$NOTPROD_S3_KEY_PREFIX
-  - export S3_ACCESS_KEY_ID=$$NOTPROD_S3_ACCESS_KEY_ID
-  - export S3_SECRET_ACCESS_KEY=$$NOTPROD_S3_SECRET_ACCESS_KEY
-  - export ACL_RDS_HOST=$$NOTPROD_ACL_RDS_HOST
-  - export ACL_RDS_DATABASE=$$NOTPROD_ACL_RDS_DATABASE
-  - export ACL_RDS_USERNAME=$$NOTPROD_ACL_RDS_USERNAME
-  - export ACL_RDS_PASSWORD=$$NOTPROD_ACL_RDS_PASSWORD
-  - export ACL_RDS_TABLE=$$NOTPROD_ACL_RDS_TABLE
-  - export SLACK_WEBHOOK=$$NOTPROD_SLACK_WEBHOOK
-  - kd --delete --file kube/deployment.yml
-  - kd -f kube/pvc.yml -f kube/secret.yml -f kube/deployment.yml
+    *deploy-to-k8s
   environment:
     ENV: notprod
     ACL_CPU_LIMIT: 2.5
@@ -72,64 +111,65 @@ steps:
     ACL_RAM_REQUEST: 3Gi
     INSECURE_SKIP_TLS_VERIFY: true
     KUBE_NAMESPACE: dq-apps-notprod
-    NOTPROD_ACL_LANDING_DIR:
+    ACL_LANDING_DIR:
       from_secret: NOTPROD_ACL_LANDING_DIR
-    NOTPROD_ACL_PASSWORD:
+    ACL_PASSWORD:
       from_secret: NOTPROD_ACL_PASSWORD
-    NOTPROD_ACL_RDS_DATABASE:
+    ACL_RDS_DATABASE:
       from_secret: NOTPROD_ACL_RDS_DATABASE
-    NOTPROD_ACL_RDS_HOST:
+    ACL_RDS_HOST:
       from_secret: NOTPROD_ACL_RDS_HOST
-    NOTPROD_ACL_RDS_PASSWORD:
+    ACL_RDS_PASSWORD:
       from_secret: NOTPROD_ACL_RDS_PASSWORD
-    NOTPROD_ACL_RDS_TABLE:
+    ACL_RDS_TABLE:
       from_secret: NOTPROD_ACL_RDS_TABLE
-    NOTPROD_ACL_RDS_USERNAME:
+    ACL_RDS_USERNAME:
       from_secret: NOTPROD_ACL_RDS_USERNAME
-    NOTPROD_ACL_SERVER:
+    ACL_SERVER:
       from_secret: NOTPROD_ACL_SERVER
-    NOTPROD_ACL_USERNAME:
+    ACL_USERNAME:
       from_secret: NOTPROD_ACL_USERNAME
-    NOTPROD_KUBE_SERVER:
+    KUBE_SERVER:
       from_secret: NOTPROD_KUBE_SERVER
-    NOTPROD_KUBE_TOKEN:
+    KUBE_TOKEN:
       from_secret: NOTPROD_KUBE_TOKEN
-    NOTPROD_S3_ACCESS_KEY_ID:
-      from_secret: NOTPROD_S3_ACCESS_KEY_ID
-    NOTPROD_S3_BUCKET_NAME:
+    S3_BUCKET_NAME:
       from_secret: NOTPROD_S3_BUCKET_NAME
-    NOTPROD_S3_KEY_PREFIX:
+    S3_KEY_PREFIX:
       from_secret: NOTPROD_S3_KEY_PREFIX
-    NOTPROD_S3_SECRET_ACCESS_KEY:
-      from_secret: NOTPROD_S3_SECRET_ACCESS_KEY
-    NOTPROD_SLACK_WEBHOOK:
+    SLACK_WEBHOOK:
       from_secret: NOTPROD_SLACK_WEBHOOK
   when:
     event:
     - push
 
+- name: rotate_aws_keys_prod
+  pull: if-not-exists
+  image: *vault-image
+  commands:
+    *rotate-app-user-aws-key
+  environment:
+    SSM_KEY_ID: acl-user-id-apps-prod-dq
+    SSM_SECURE_KEY: acl-user-key-apps-prod-dq
+    APP_USER_NAME: iam-user-acl-apps-prod-dq
+    ENV: prod
+    VAULT_ADDR:
+      from_secret: VAULT_ADDR_PROD
+    VAULT_TOKEN:
+      from_secret: VAULT_TOKEN_PROD
+  when:
+    branch:
+    - master
+    event:
+    - promote
+    target:
+    - production
+
 - name: deploy_to_production
   pull: if-not-exists
-  image: quay.io/ukhomeofficedigital/kd
+  image: *kd-image
   commands:
-  - export KUBE_TOKEN=$$PROD_KUBE_TOKEN
-  - export KUBE_SERVER=$$PROD_KUBE_SERVER
-  - export ACL_SERVER=$$PROD_ACL_SERVER
-  - export ACL_USERNAME=$$PROD_ACL_USERNAME
-  - export ACL_PASSWORD=$$PROD_ACL_PASSWORD
-  - export ACL_LANDING_DIR=$$PROD_ACL_LANDING_DIR
-  - export S3_BUCKET_NAME=$$PROD_S3_BUCKET_NAME
-  - export S3_KEY_PREFIX=$$PROD_S3_KEY_PREFIX
-  - export S3_ACCESS_KEY_ID=$$PROD_S3_ACCESS_KEY_ID
-  - export S3_SECRET_ACCESS_KEY=$$PROD_S3_SECRET_ACCESS_KEY
-  - export ACL_RDS_HOST=$$PROD_ACL_RDS_HOST
-  - export ACL_RDS_DATABASE=$$PROD_ACL_RDS_DATABASE
-  - export ACL_RDS_USERNAME=$$PROD_ACL_RDS_USERNAME
-  - export ACL_RDS_PASSWORD=$$PROD_ACL_RDS_PASSWORD
-  - export ACL_RDS_TABLE=$$PROD_ACL_RDS_TABLE
-  - export SLACK_WEBHOOK=$$PROD_SLACK_WEBHOOK
-  - kd --delete --file kube/deployment.yml
-  - kd -f kube/pvc.yml -f kube/secret.yml -f kube/deployment.yml
+    *deploy-to-k8s
   environment:
     ENV: prod
     ACL_CPU_LIMIT: 2.5
@@ -139,37 +179,33 @@ steps:
     ACL_RAM_REQUEST: 3Gi
     INSECURE_SKIP_TLS_VERIFY: true
     KUBE_NAMESPACE: dq-apps
-    PROD_ACL_LANDING_DIR:
+    ACL_LANDING_DIR:
       from_secret: PROD_ACL_LANDING_DIR
-    PROD_ACL_PASSWORD:
+    ACL_PASSWORD:
       from_secret: PROD_ACL_PASSWORD
-    PROD_ACL_RDS_DATABASE:
+    ACL_RDS_DATABASE:
       from_secret: PROD_ACL_RDS_DATABASE
-    PROD_ACL_RDS_HOST:
+    ACL_RDS_HOST:
       from_secret: PROD_ACL_RDS_HOST
-    PROD_ACL_RDS_PASSWORD:
+    ACL_RDS_PASSWORD:
       from_secret: PROD_ACL_RDS_PASSWORD
-    PROD_ACL_RDS_TABLE:
+    ACL_RDS_TABLE:
       from_secret: PROD_ACL_RDS_TABLE
-    PROD_ACL_RDS_USERNAME:
+    ACL_RDS_USERNAME:
       from_secret: PROD_ACL_RDS_USERNAME
-    PROD_ACL_SERVER:
+    ACL_SERVER:
       from_secret: PROD_ACL_SERVER
-    PROD_ACL_USERNAME:
+    ACL_USERNAME:
       from_secret: PROD_ACL_USERNAME
-    PROD_KUBE_SERVER:
+    KUBE_SERVER:
       from_secret: PROD_KUBE_SERVER
-    PROD_KUBE_TOKEN:
+    KUBE_TOKEN:
       from_secret: PROD_KUBE_TOKEN
-    PROD_S3_ACCESS_KEY_ID:
-      from_secret: PROD_S3_ACCESS_KEY_ID
-    PROD_S3_BUCKET_NAME:
+    S3_BUCKET_NAME:
       from_secret: PROD_S3_BUCKET_NAME
-    PROD_S3_KEY_PREFIX:
+    S3_KEY_PREFIX:
       from_secret: PROD_S3_KEY_PREFIX
-    PROD_S3_SECRET_ACCESS_KEY:
-      from_secret: PROD_S3_SECRET_ACCESS_KEY
-    PROD_SLACK_WEBHOOK:
+    SLACK_WEBHOOK:
       from_secret: PROD_SLACK_WEBHOOK
   when:
     branch:
@@ -178,6 +214,33 @@ steps:
     - promote
     target:
     - production
+
+- name: renew-vault-tokens
+  pull: if-not-exists
+  image: *vault-image
+  commands:
+    # Renew NotProd Drone Vault Token
+    - export VAULT_TOKEN=$${VAULT_TOKEN_NOTPROD}
+    - export VAULT_ADDR=$${VAULT_ADDR_NOTPROD}
+    - vault token renew > /dev/null
+    # Renew Prod Drone Vault Token
+    - export VAULT_TOKEN=$${VAULT_TOKEN_PROD}
+    - export VAULT_ADDR=$${VAULT_ADDR_PROD}
+    - vault token renew > /dev/null
+  environment:
+    VAULT_ADDR_NOTPROD:
+      from_secret: VAULT_ADDR_NOTPROD
+    VAULT_TOKEN_NOTPROD:
+      from_secret: VAULT_TOKEN_NOTPROD
+    VAULT_ADDR_PROD:
+      from_secret: VAULT_ADDR_PROD
+    VAULT_TOKEN_PROD:
+      from_secret: VAULT_TOKEN_PROD
+  when:
+    event:
+      - cron
+    cron:
+      - renew-vault-tokens
 
 services:
   - name: docker
