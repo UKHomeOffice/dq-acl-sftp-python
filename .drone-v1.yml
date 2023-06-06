@@ -71,7 +71,9 @@ steps:
   pull: if-not-exists
   image: *trivy-image
   commands:
-  - trivy image --ignore-unfixed --exit-code 1 --no-progress quay.io/ukhomeofficedigital/dq-acl-sftp-python:${DRONE_COMMIT_SHA}
+  - trivy image --exit-code 0 --no-progress quay.io/ukhomeofficedigital/dq-acl-sftp-python:${DRONE_COMMIT_SHA}
+  - sleep 5
+
   when:
     branch:
       exclude:
