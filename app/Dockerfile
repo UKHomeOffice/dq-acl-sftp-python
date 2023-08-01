@@ -18,6 +18,7 @@ RUN mkdir -p \
              /home/runner/.ssh
 
 COPY packages.txt /tmp/ADT/scripts
+COPY package.json /
 COPY ecosystem.config.js /tmp/ADT/scripts
 COPY docker-entrypoint.sh /
 ADD bin /tmp/ADT/bin
