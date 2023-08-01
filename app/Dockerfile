@@ -53,7 +53,8 @@ RUN npm install -g pm2 && \
 
 RUN npm uninstall -g semver && \
     npm install -g semver@7.5.4 && \
-    semver node_modules
+    npm uninstall -g nodemon && \
+    npm install -g nodemon
     
 VOLUME ["/ADT"]
 RUN chown -R runner:runner /ADT
