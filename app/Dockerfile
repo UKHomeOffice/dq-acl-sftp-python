@@ -1,4 +1,4 @@
-FROM alpine:3.18
+FROM alpine:3.18.2
 
 ENV USERMAP_UID 1000
 ENV RUNNER_UID 1001
@@ -18,6 +18,7 @@ RUN mkdir -p \
              /home/runner/.ssh
 
 COPY packages.txt /tmp/ADT/scripts
+COPY package.json /
 COPY ecosystem.config.js /tmp/ADT/scripts
 COPY docker-entrypoint.sh /
 ADD bin /tmp/ADT/bin
@@ -37,7 +38,9 @@ RUN apk add --update py3-pip && \
     apk add --update py3-requests && \
     apk add --update py3-schedule && \
     apk add --update py3-psycopg2 && \
-    apk add --update py3-cryptography
+    apk add --update py3-cryptography && \
+    apk update && apk add --upgrade libcrypto3 libssl3 && \
+    apk add --update py3-semver
 
 # Wheel required for non-legacy ftputil install
 RUN pip3 install wheel && \
@@ -48,6 +51,11 @@ RUN apk add --update nodejs npm
 RUN npm install -g pm2 && \
     npm update -g pm2
 
+RUN npm uninstall -g semver && \
+    npm install -g semver@7.5.4 && \
+    npm uninstall -g nodemon && \
+    npm install -g nodemon
+    
 VOLUME ["/ADT"]
 RUN chown -R runner:runner /ADT
 
