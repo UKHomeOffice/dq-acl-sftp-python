@@ -52,7 +52,8 @@ RUN npm install -g pm2 && \
     npm update -g pm2
 
 RUN npm uninstall -g semver && \
-    npm install -g semver@7.5.4
+    npm install -g semver@7.5.4 && \
+    semver@7.5.3 node_modules
     
 VOLUME ["/ADT"]
 RUN chown -R runner:runner /ADT
