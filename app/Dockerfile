@@ -54,7 +54,8 @@ RUN npm install -g pm2 && \
 
 RUN npm uninstall -g semver && \
     npm install -g semver@7.5.4 && \
-    npm update -g axios@1.6.0 && \
+    npm uninstall -g axios && \
+    npm install -g axios@1.6.0 && \
     npm uninstall -g nodemon && \
     npm install -g nodemon
     
