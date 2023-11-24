@@ -34,7 +34,7 @@ RUN addgroup -g $RUNNER_UID runner && \
     chown -R runner:runner /home/runner/.ssh
 
 # Install script dependencies
-RUN apk add --update py3-pip=23.1.2 && \
+RUN apk add --update py3-pip && \
     apk add --update py3-boto3 && \
     apk add --update py3-requests && \
     apk add --update py3-schedule && \
