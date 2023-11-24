@@ -56,8 +56,7 @@ RUN npm uninstall -g semver && \
     npm install -g semver@7.5.4 && \
     npm update -g axios@1.6.0 && \
     npm uninstall -g nodemon && \
-    npm install -g nodemon && \
-    npm audit fix
+    npm install -g nodemon
     
 VOLUME ["/ADT"]
 RUN chown -R runner:runner /ADT
