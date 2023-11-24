@@ -59,7 +59,7 @@ RUN npm uninstall -g semver && \
     npm uninstall -g nodemon && \
     npm install -g nodemon
 
-RUN npm audit fix
+RUN npm i --package-lock-only && npm audit fix
 
 VOLUME ["/ADT"]
 RUN chown -R runner:runner /ADT
