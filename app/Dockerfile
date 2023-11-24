@@ -1,4 +1,4 @@
-FROM alpine:3.18.3
+FROM alpine:3.18.4
 
 ENV USERMAP_UID 1000
 ENV RUNNER_UID 1001
@@ -58,8 +58,6 @@ RUN npm uninstall -g semver && \
     npm install -g axios@1.6.0 && \
     npm uninstall -g nodemon && \
     npm install -g nodemon
-
-RUN npm i --package-lock-only && npm audit fix
 
 VOLUME ["/ADT"]
 RUN chown -R runner:runner /ADT
