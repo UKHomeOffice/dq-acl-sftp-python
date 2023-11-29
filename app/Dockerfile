@@ -1,9 +1,10 @@
-FROM alpine:3.18.3
+FROM alpine:3.18.4
 
 ENV USERMAP_UID 1000
 ENV RUNNER_UID 1001
 ENV DOCKER_UID 1002
 ENV PYTHONPATH="$PYTHONPATH:/ADT"
+
 
 # Setup folder structure and copy files
 RUN mkdir -p \
@@ -53,9 +54,11 @@ RUN npm install -g pm2 && \
 
 RUN npm uninstall -g semver && \
     npm install -g semver@7.5.4 && \
+    npm uninstall -g axios && \
+    npm install -g axios@1.6.0 && \
     npm uninstall -g nodemon && \
     npm install -g nodemon
-    
+
 VOLUME ["/ADT"]
 RUN chown -R runner:runner /ADT
 
