@@ -1,4 +1,4 @@
-FROM alpine:3.18.4
+FROM alpine:3.18.6
 
 ENV USERMAP_UID 1000
 ENV RUNNER_UID 1001
@@ -34,30 +34,16 @@ RUN addgroup -g $RUNNER_UID runner && \
     chown -R runner:runner /home/runner/.ssh
 
 # Install script dependencies
-RUN apk add --update py3-pip && \
-    apk add --update py3-boto3 && \
-    apk add --update py3-requests && \
-    apk add --update py3-schedule && \
-    apk add --update py3-psycopg2 && \
-    apk add --update py3-cryptography && \
-    apk update && apk add --upgrade libcrypto3 libssl3 && \
-    apk add --update py3-semver
+RUN apk update  && \
+    apk add --update py3-boto3 py3-pip py3-requests py3-schedule \
+                    py3-schedule py3-psycopg2 py3-cryptography py3-semver libcrypto3 libssl3
 
 # Wheel required for non-legacy ftputil install
-RUN pip3 install wheel && \
-    pip3 install ftputil
+RUN pip3 install wheel ftputil
 
 # Install PM2
-RUN apk add --update nodejs npm
-RUN npm install -g pm2 && \
-    npm update -g pm2
-
-RUN npm uninstall -g semver && \
-    npm install -g semver@7.5.4 && \
-    npm uninstall -g axios && \
-    npm install -g axios@1.6.0 && \
-    npm uninstall -g nodemon && \
-    npm install -g nodemon
+RUN apk add nodejs npm
+RUN npm install -g semver@7.5.4 axios@1.6.0 nodemon pm2 npm
 
 VOLUME ["/ADT"]
 RUN chown -R runner:runner /ADT
