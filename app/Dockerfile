@@ -1,4 +1,4 @@
-FROM alpine:3.18.6
+FROM alpine:3.18.7
 
 ENV USERMAP_UID 1000
 ENV RUNNER_UID 1001
@@ -43,7 +43,7 @@ RUN pip3 install wheel ftputil
 
 # Install PM2
 RUN apk add nodejs npm
-RUN npm install -g semver@7.5.4 axios@1.6.0 nodemon pm2 npm
+RUN npm install -g semver@7.5.4 axios@1.7.4 nodemon pm2 npm
 
 VOLUME ["/ADT"]
 RUN chown -R runner:runner /ADT
