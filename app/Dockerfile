@@ -43,7 +43,19 @@ RUN pip3 install wheel ftputil
 
 # Install PM2
 RUN apk add nodejs npm
-RUN npm install -g semver@7.5.4 axios@1.7.4 nodemon pm2 npm
+#RUN npm install -g semver@7.5.4 axios@1.7.4 nodemon pm2 npm
+RUN npm install -g nodemon pm2
+
+#New packages available to address security vulnerabilities
+RUN apk update && apk add --upgrade \
+    libpq \
+    libexpat \
+    musl \
+    musl-utils \
+    python3 \
+    python3-pyc \
+    python3-pycache-pyc0 \
+    xz-libs
 
 VOLUME ["/ADT"]
 RUN chown -R runner:runner /ADT
