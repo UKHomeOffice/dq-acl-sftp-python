@@ -43,7 +43,7 @@ RUN pip3 install wheel ftputil
 
 # Install PM2
 RUN apk add nodejs npm
-RUN npm install -g nodemon pm2 npm
+RUN npm install -g nodemon pm2
 
 VOLUME ["/ADT"]
 RUN chown -R runner:runner /ADT
