@@ -36,7 +36,16 @@ RUN addgroup -g $RUNNER_UID runner && \
 # Install script dependencies
 RUN apk update  && \
     apk add --update py3-boto3 py3-pip py3-requests py3-schedule \
-                    py3-schedule py3-psycopg2 py3-cryptography py3-semver libcrypto3 libssl3
+                    py3-schedule py3-psycopg2 py3-cryptography py3-semver
+
+RUN apk update --no-cache && \
+    apk upgrade --no-cache \
+        libexpat \
+        musl-dev \
+        libcrypto3 \
+        libssl3 \
+        musl \
+        musl-utils
 
 # Wheel required for non-legacy ftputil install
 RUN pip3 install wheel ftputil
