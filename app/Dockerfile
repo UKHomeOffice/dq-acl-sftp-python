@@ -39,6 +39,15 @@ RUN apk update  && \
                     py3-schedule py3-psycopg2 py3-cryptography py3-semver && \
                     apk upgrade --no-cache libcrypto3 libssl3
 
+RUN apk update --no-cache && \
+    apk upgrade --no-cache \
+        libexpat \
+        musl-dev \
+        libcrypto3 \
+        libssl3 \
+        musl \
+        musl-utils
+
 # Wheel required for non-legacy ftputil install
 RUN pip3 install wheel ftputil
 
