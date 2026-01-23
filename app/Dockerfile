@@ -49,7 +49,12 @@ RUN apk update --no-cache && \
         musl-utils
 
 # Wheel required for non-legacy ftputil install
-RUN pip3 install wheel ftputil
+RUN pip3 install ftputil
+
+# Upgrade force wheel to latest (or pin exactly to 0.46.2+)
+RUN pip install --no-cache-dir -U pip \
+    && pip install --no-cache-dir --upgrade --force-reinstall "wheel==0.46.2" setuptools \
+    && pip show wheel
 
 # Install PM2
 RUN apk add nodejs npm
