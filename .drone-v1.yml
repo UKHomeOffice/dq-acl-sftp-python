@@ -97,6 +97,35 @@ steps:
     event:
       - push
 
+- name: scale_down_pods_dev
+  pull: if-not-exists
+  image: *kd-image
+  commands:
+  - export KUBE_SERVER=$${NOTPROD_KUBE_SERVER}
+  - export KUBE_TOKEN=$${NOTPROD_KUBE_TOKEN}
+  - export KUBE_NAMESPACE=$${NOTPROD_KUBE_NAMESPACE}
+  - command -v kubectl >/dev/null 2>&1
+  - kubectl --server="$${KUBE_SERVER}" --token="$${KUBE_TOKEN}" --namespace="$${KUBE_NAMESPACE}" --insecure-skip-tls-verify scale deployment dq-acl-data-ingest --replicas=0
+  - kubectl --server="$${KUBE_SERVER}" --token="$${KUBE_TOKEN}" --namespace="$${KUBE_NAMESPACE}" --insecure-skip-tls-verify wait --for=delete pod -l name=dq-acl-data-ingest --timeout=120s
+  environment:
+    NOTPROD_KUBE_NAMESPACE:
+      from_secret: NOTPROD_KUBE_NAMESPACE
+    NOTPROD_KUBE_SERVER:
+      from_secret: NOTPROD_KUBE_SERVER
+    NOTPROD_KUBE_TOKEN:
+      from_secret: NOTPROD_KUBE_TOKEN
+  when:
+    branch:
+      - master
+      - hotfix/*
+      - feature/*
+    event:
+      - promote
+      - push
+    target:
+      exclude:
+        - production
+
 - name: deploy_to_dev
   pull: if-not-exists
   image: *kd-image
@@ -164,6 +193,33 @@ steps:
     - promote
     target:
     - production
+
+- name: scale_down_pods_prod
+  pull: if-not-exists
+  image: *kd-image
+  commands:
+  - export KUBE_SERVER=$${PROD_KUBE_SERVER}
+  - export KUBE_TOKEN=$${PROD_KUBE_TOKEN}
+  - export KUBE_NAMESPACE=$${PROD_KUBE_NAMESPACE}
+  - command -v kubectl >/dev/null 2>&1
+  - kubectl --server="$${KUBE_SERVER}" --token="$${KUBE_TOKEN}" --namespace="$${KUBE_NAMESPACE}" --insecure-skip-tls-verify scale deployment dq-acl-data-ingest --replicas=0
+  - kubectl --server="$${KUBE_SERVER}" --token="$${KUBE_TOKEN}" --namespace="$${KUBE_NAMESPACE}" --insecure-skip-tls-verify wait --for=delete pod -l name=dq-acl-data-ingest --timeout=120s
+  environment:
+    PROD_KUBE_NAMESPACE:
+      from_secret: PROD_KUBE_NAMESPACE
+    PROD_KUBE_SERVER:
+      from_secret: PROD_KUBE_SERVER
+    PROD_KUBE_TOKEN:
+      from_secret: PROD_KUBE_TOKEN
+  when:
+    branch:
+     - master
+     - hotfix/*
+    event:
+     - promote
+     - push
+    target:
+     - production
 
 - name: deploy_to_production
   pull: if-not-exists
